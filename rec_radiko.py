@@ -31,11 +31,13 @@ def get_args():
                 metavar='Prefix name',\
                 nargs='?', \
                 help='Prefix name for output file.' )
+    '''
     parser.add_argument('-tf', '--timefree', \
                 metavar='timefree id', \
                 nargs=1, \
                 default=None, \
                 help='Time Free Progam ID' )
+    '''
     return parser.parse_args()
 #
 # get authorized token and areaid(ex, JP13)
@@ -115,6 +117,7 @@ def live_rec( url_parts, auth_token, prefix, duration, date, outdir ):
 #
 # Time Free record by ffmpeg.
 # Underconstruction
+'''
 def tf_rec( auth_token, channel, ft, to, outdir, prefix, date ):
     ffmpeg = '/usr/bin/ffmpeg'
     headers = f' -headers "X-Radiko-AuthToken: { auth_token }"'
@@ -126,6 +129,7 @@ def tf_rec( auth_token, channel, ft, to, outdir, prefix, date ):
     cmd = cmd + ' -acodec libmp3lame -ab 128k -vn {}'.format( path )
     # Exec ffmpeg
     subprocess.call( cmd.strip().split(" ")  ) 
+'''
 #
 # set program meta by mutagen for mp4 file
 #
@@ -146,32 +150,6 @@ def set_mp4_meta( program, channel, rec_file, index ):
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
     audio.save()  
-    return
-#
-# set program meta by mutagen for mp3 file
-#
-def set_mp3_meta( program, channel, rec_file, index):
-    program.get_now( channel )
-    tags = EasyID3(rec_file)
-    tags['album'] = channel
-    if program.title[index].text is not None:
-        tags['title'] = program.title[index].text
-    if program.pfm[index].text is not None:
-        tags['artist'] = program.pfm[index].text
-
-    tags.save()
-
-    if program.img[index].text is not None:
-        logo_url = program.img[index].text
-        coverart = urlopen_w_retry(logo_url)
-        audio = MP3(rec_file)
-        audio.tags.add(
-            APIC( encoding=3, # 3 is for utf-8 
-                mime='image/jpeg', # image/jpeg or image/png 
-                type=3, # 3 is for the cover image 
-                desc='Cover', 
-                data=coverart))
-        audio.save()
     return
 
 if __name__ == '__main__':
@@ -195,6 +173,8 @@ if __name__ == '__main__':
         sys.exit(1)
     # get program meta via radiko api
     url = get_streamurl( channel ,auth_token )
+    rec_file=live_rec( url, auth_token, prefix, duration, date, outdir )
+    '''
     if args.timefree is None:
         index = 1
         rec_file=live_rec( url, auth_token, prefix, \
@@ -202,5 +182,7 @@ if __name__ == '__main__':
     else:
         index = 0
         rec_file=tf_rec( auth_token, channel, ft, to, outdir, prefix, date )
+    '''
+    index = 1 #What's this?
     set_mp4_meta( program, channel, rec_file, index )
     sys.exit(0)
