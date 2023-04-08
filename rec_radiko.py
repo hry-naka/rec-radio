@@ -155,8 +155,8 @@ def set_mp4_meta( program, channel, rec_file, index ):
 if __name__ == '__main__':
     args = get_args()
     channel=args.channel
-    stream_delay = 0.4 #need to change
-    duration=int((args.duration + stream_delay)* 60)
+    stream_delay = 25 #second
+    duration=int(args.duration * 60) + stream_delay
     outdir=args.outputdir
     if args.prefix is None:
         prefix=args.channel
