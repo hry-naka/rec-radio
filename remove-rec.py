@@ -33,7 +33,7 @@ def getYesterday():
 
 def getFileList( path, date ):
     date = date.strftime( '%Y-%m-%d' )
-    l = glob.glob( path + '/*' + date + '*.mp3' )
+    l = glob.glob( path + '/*' + date + '*.mp4' )
     return l
 
 '''
