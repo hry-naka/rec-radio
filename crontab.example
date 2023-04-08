@@ -1,0 +1,65 @@
+PYTHONPATH=/home/naka-h/test/rec-radio:$PYTHONPATH
+# Enjoy Simple English
+ESE=/home/pub/Sound/Radio/English/ESE
+#10  9 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 6 $ESE ESE
+10  9 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $ESE ESE
+10 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $ESE ESE
+20 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ESE
+# Vocabularider
+VOC=/home/pub/Sound/Radio/English/VOC
+#05  9 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 6 $VOC VOC
+05  9 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $VOC VOC
+35 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $VOC VOC
+45 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $VOC
+# Eikaiwa Time Trial
+ETT=/home/pub/Sound/Radio/English/ETT
+#30  8 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 11 $ETT ETT
+30  8 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 10 $ETT ETT
+25 18 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 10 $ETT ETT
+40 18 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ETT
+# Radio English Conversaton
+REC=/home/pub/Sound/Radio/English/REC/
+#25 12 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 16 $REC REC
+25 12 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $REC REC
+45 21 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $REC REC
+55 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $REC
+# Everyday Chinese
+ECN=/home/pub/Sound/Radio/Chinese/ECN/
+#15  8 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 16 $ECN ECN
+15  8 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $ECN ECN
+15 22 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $ECN ECN
+35 22 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ECN
+# Labrinth 
+LIC=/home/pub/Sound/Radio/Music/LIC
+20 19 * * Sat	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 100 $LIC Labyrinth
+# KakeruClassic
+KKC=/home/pub/Sound/Radio/Music/KKC
+00 14 * * Sun	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 110 $KKC KakeruClassic
+# Moon Flight by Takuya Kuroda
+KMF=/home/pub/Sound/Radio/Music/KMF/
+00 21 * * Tue	$HOME/test/rec-radio/rec_radiko.py INT 30 $KMF MoonFlight
+# All that jazz
+ATJ=/home/pub/Sound/Radio/Music/ATJ
+30 20 * * Wed	$HOME/test/rec-radio/rec_radiko.py INT 30 $ATJ AllThatJazz
+# Jazz Tonight
+JT=/home/pub/Sound/Radio/Music/JT/
+00 23 * * Sat	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 120 $JT JazzTonight
+# Otona Jazz Time
+OJT=/home/pub/Sound/Radio/Music/OJT
+00 23 * * Sat	$HOME/test/rec-radio/rec_radiko.py JORF 60 $OJT OtonaJazzTime
+# Taste of Jazz
+TJ=/home/pub/Sound/Radio/Music/TJ/
+#30 18 * * Fri	$HOME/test/rec-radio/rec_radiko.py RN1 30 $TJ TasteOfJazz
+00 19 * * Sun	$HOME/test/rec-radio/rec_radiko.py RN1 30 $TJ TasteOfJazz
+# Jazz Voyage
+JV=/home/pub/Sound/Radio/Music/JV/
+50 21 * * Sun	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 50 $JV JazzVoyage
+# Murakami Radio
+MURA=/home/pub/Sound/Radio/Music/Murakami
+00 19 26 3 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
+00 19 30 4 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
+00 19 28 5 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
+00 19 25 6 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
+00 19 30 7 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
+00 19 27 8 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
+00 19 24 9 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
