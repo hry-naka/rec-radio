@@ -61,7 +61,6 @@ def get_streamurl( channel ):
     for child in root.findall( nhk_xpath_base ):
         if child.tag == 'area' and child.text == here:
             return root.findtext( xpath ), code
-
     return None
 
 def get_program_info( area_code, code ,timing ):
@@ -139,8 +138,8 @@ def set_mp4_meta( program, channel, rec_file ):
 if __name__ == '__main__':
     args = get_args()
     channel=args.channel
-    stream_delay = 0.65 #need to change
-    duration=int((args.duration + stream_delay)* 60)
+    stream_delay = 40 #second
+    duration=int(args.duration* 60) + stream_delay
     outdir=args.outputdir
     timing=args.timing
     if args.prefix is None:
