@@ -8,7 +8,7 @@ import requests
 import re
 import time
 import base64
-from mypkg.RadioXml import RadikoXml as RX
+from mypkg.RadikoXml import RadikoXml as RX
 from datetime import datetime as DT
 import mutagen
 from mutagen.mp4 import MP4, MP4Cover
