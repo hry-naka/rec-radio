@@ -2,6 +2,8 @@
 # coding: utf-8
 import argparse
 import sys
+import os
+import glob
 import shutil
 import subprocess
 import requests
@@ -38,6 +40,9 @@ def get_args():
                 default=None, \
                 help='Time Free Progam ID' )
     '''
+    parser.add_argument( '-c', '--cleanup' , \
+                action='store_true' , \
+                help='Cleanup(remove) output file which recording is not completed.' )
     return parser.parse_args()
 #
 # get authorized token and areaid(ex, JP13)
@@ -152,6 +157,22 @@ def set_mp4_meta( program, channel, rec_file, index ):
     audio.save()  
     return
 
+def getFileList( path, date ):
+    date = date.strftime( '%Y-%m-%d' )
+    l = glob.glob( path + '/*' + date + '*.mp4' )
+    return l
+
+def removeRecFile( path , date ):
+    fl = getFileList( path, date )
+    fl_dic = {}
+    for f in fl:
+        size = os.path.getsize( f )
+        fl_dic[f] = size
+    remove = sorted(fl_dic.items(), key = lambda x : x[1] , reverse=True)
+    remove.pop(0)
+    for f in remove:
+        #print( 'removing file will be: ' + f[0] )
+        os.remove( f[0] )
 if __name__ == '__main__':
     args = get_args()
     channel=args.channel
@@ -186,4 +207,6 @@ if __name__ == '__main__':
     '''
     index = 1 #What's this?
     set_mp4_meta( program, channel, rec_file, index )
+    if( args.cleanup ):
+        removeRecFile( outdir , DT.today() )
     sys.exit(0)
