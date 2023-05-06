@@ -21,18 +21,19 @@ optional arguments:
 ```
 radiko用
 ```
-usage: rec_radiko.py [-h] channel duration [outputdir] [Prefix name]
+usage: rec_radiko.py [-h] [-c] channel duration [outputdir] [Prefix name]
 
 Recording Radiko.
 
 positional arguments:
-  channel      Channel Name
-  duration     Duration(minutes)
-  outputdir    Output path default:'.'
-  Prefix name  Prefix name for output file.
+  channel        Channel Name
+  duration       Duration(minutes)
+  outputdir      Output path default:'.'
+  Prefix name    Prefix name for output file.
 
-options:
-  -h, --help   show this help message and exit
+optional arguments:
+  -h, --help     show this help message and exit
+  -c, --cleanup  Cleanup(remove) output file which recording is not completed.
 ```
 
 ## メモ
