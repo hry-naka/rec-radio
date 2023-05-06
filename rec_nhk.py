@@ -3,12 +3,12 @@
 import argparse
 import sys
 import os
+import glob
 import shutil
 import subprocess
 import requests
 import json
 import xml.etree.ElementTree as ET
-import re
 from datetime import datetime as DT
 from mutagen.mp4 import MP4, MP4Cover
 
@@ -34,6 +34,9 @@ def get_args():
                 nargs='?', \
                 choices=['previous', 'following', 'present'], \
                 default='present')
+    parser.add_argument( '-c', '--cleanup' , \
+                action='store_true' , \
+                help='Cleanup(remove) output file which recording is not completed.' )
     return parser.parse_args()
 
 # retrieve download url from xml
@@ -135,6 +138,23 @@ def set_mp4_meta( program, channel, rec_file ):
     #print( audio.tags.pprint() )
     return
 
+def getFileList( path, date ):
+    date = date.strftime( '%Y-%m-%d' )
+    l = glob.glob( path + '/*' + date + '*.mp4' )
+    return l
+
+def removeRecFile( path , date ):
+    fl = getFileList( path, date )
+    fl_dic = {}
+    for f in fl:
+        size = os.path.getsize( f )
+        fl_dic[f] = size
+    remove = sorted(fl_dic.items(), key = lambda x : x[1] , reverse=True)
+    remove.pop(0)
+    for f in remove:
+        #print( 'removing file will be: ' + f[0] )
+        os.remove( f[0] )
+
 if __name__ == '__main__':
     args = get_args()
     channel=args.channel
@@ -160,4 +180,6 @@ if __name__ == '__main__':
     rec_file = live_rec( dl_url, duration, outdir, prefix, date )
     # Set meta information to MP4 tag
     set_mp4_meta( program, channel, rec_file )
+    if( args.cleanup ):
+        removeRecFile( outdir , DT.today() )
     sys.exit(0)
