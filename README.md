@@ -4,8 +4,7 @@
 # 仕様
 NHKラジオの録音用
 ```
-usage: rec_nhk.py [-h] [--timing [{previous,following,present}]]
-                  channel duration [outputdir] [Prefix name]
+usage: rec_nhk.py [-h] [--timing [{previous,following,present}]] [-c] channel duration [outputdir] [Prefix name]
 
 Recording NHK radio.
 
@@ -15,9 +14,10 @@ positional arguments:
   outputdir             Output path default:'.'
   Prefix name           Prefix name for output file.
 
-options:
+optional arguments:
   -h, --help            show this help message and exit
   --timing [{previous,following,present}]
+  -c, --cleanup         Cleanup(remove) output file which recording is not completed.
 ```
 radiko用
 ```
