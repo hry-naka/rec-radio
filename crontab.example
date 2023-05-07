@@ -3,32 +3,32 @@ PYTHONPATH=/home/naka-h/test/rec-radio:$PYTHONPATH
 ESE=/home/pub/Sound/Radio/English/ESE
 #10  9 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 6 $ESE ESE
 10  9 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $ESE ESE
-10 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $ESE ESE
-20 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ESE
+10 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $ESE ESE -c
+#20 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ESE
 # Vocabularider
 VOC=/home/pub/Sound/Radio/English/VOC
 #05  9 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 6 $VOC VOC
 05  9 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $VOC VOC
-35 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $VOC VOC
-45 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $VOC
+35 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $VOC VOC -c
+#45 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $VOC
 # Eikaiwa Time Trial
 ETT=/home/pub/Sound/Radio/English/ETT
 #30  8 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 11 $ETT ETT
 30  8 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 10 $ETT ETT
-25 18 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 10 $ETT ETT
-40 18 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ETT
+25 18 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 10 $ETT ETT -c
+#40 18 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ETT
 # Radio English Conversaton
 REC=/home/pub/Sound/Radio/English/REC/
 #25 12 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 16 $REC REC
 25 12 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $REC REC
-45 21 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $REC REC
-55 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $REC
+45 21 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $REC REC -c
+#55 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $REC
 # Everyday Chinese
 ECN=/home/pub/Sound/Radio/Chinese/ECN/
 #15  8 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 16 $ECN ECN
 15  8 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $ECN ECN
-15 22 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $ECN ECN
-35 22 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ECN
+15 22 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $ECN ECN -c
+#35 22 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ECN
 # Labrinth 
 LIC=/home/pub/Sound/Radio/Music/LIC
 20 19 * * Sat	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 100 $LIC Labyrinth
@@ -63,3 +63,8 @@ MURA=/home/pub/Sound/Radio/Music/Murakami
 00 19 30 7 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
 00 19 27 8 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
 00 19 24 9 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
+# Test
+20 16 * * Sat	$HOME/test/rec-radio/rec_nhk.py NHK2 3 $HOME/test/rec-radio TST
+25 16 * * Sat	$HOME/test/rec-radio/rec_radiko.py INT 3 $HOME/test/rec-radio TST
+#25 12 * * Thu	$HOME/bin/rec_nhk.py NHK1 1 $HOME/Dropbox TST
+#07 18 * * Fri	$HOME/bin/rec_radiko.py TBS 1 $HOME/Dropbox TST
