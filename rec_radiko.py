@@ -6,14 +6,15 @@ import os
 import glob
 import shutil
 import subprocess
-import requests
-import re
 import time
-import base64
-from mypkg.RadikoXml import RadikoXml as RX
 from datetime import datetime as DT
+import re
+import base64
+import requests
 import mutagen
 from mutagen.mp4 import MP4, MP4Cover
+from mypkg.RadikoXml import RadikoXml as RX
+
 
 def get_args():
     parser=argparse.ArgumentParser( description='Recording Radiko.' )
