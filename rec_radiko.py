@@ -13,7 +13,7 @@ import base64
 import requests
 import mutagen
 from mutagen.mp4 import MP4, MP4Cover
-from mypkg.RadikoXml import RadikoXml as RX
+from mypkg.RadikoApi import RadikoApi
 
 
 def get_args():
@@ -139,19 +139,21 @@ def tf_rec( auth_token, channel, ft, to, outdir, prefix, date ):
 #
 # set program meta by mutagen for mp4 file
 #
-def set_mp4_meta( program, channel, rec_file, index ):
+def set_mp4_meta( program, channel, area_id, rec_file ):
     program.get_now( channel )
     audio = MP4(rec_file)
     # track title
-    if program.title[index].text is not None:
-        audio.tags["\xa9nam"] = program.title[index].text
+    title = program.get_title( channel, area_id )
+    if title is not None:
+        audio.tags["\xa9nam"] = title
     # album
     audio.tags["\xa9alb"] = channel
     # artist and album artist
-    if program.pfm[index].text is not None:
-        audio.tags['\aART'] = program.pfm[index].text
-        audio.tags["\xa9ART"] = program.pfm[index].text
-    logo_url = program.img[index].text
+    pfm = program.get_pfm( channel, area_id )
+    if pfm is not None:
+        audio.tags['\aART'] = pfm
+        audio.tags["\xa9ART"] = pfm
+    logo_url = program.get_img( channel, area_id )
     coverart = requests.get(logo_url).content
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
@@ -174,6 +176,7 @@ def removeRecFile( path , date ):
     for f in remove:
         #print( 'removing file will be: ' + f[0] )
         os.remove( f[0] )
+
 if __name__ == '__main__':
     args = get_args()
     channel=args.channel
@@ -186,14 +189,14 @@ if __name__ == '__main__':
         prefix=args.prefix
     # setting date
     date = DT.now().strftime('%Y-%m-%d-%H_%M')
-    # auhorize, get token and areaid
-    auth_token, areaid = authorize()
-    # Construct RadikoXml
-    program = RX( areaid )
+    # Construct RadikoApi
+    api = RadikoApi()
     # Check whether channel is available
-    if program.is_avail( channel ) == False:
+    if api.is_avail( channel ) == False:
         print( f'Specified station {channel} is not found.' )
         sys.exit(1)
+    # auhorize, get token and areaid
+    auth_token, area_id = api.authorize()
     # get program meta via radiko api
     url = get_streamurl( channel ,auth_token )
     rec_file=live_rec( url, auth_token, prefix, duration, date, outdir )
@@ -207,7 +210,7 @@ if __name__ == '__main__':
         rec_file=tf_rec( auth_token, channel, ft, to, outdir, prefix, date )
     '''
     index = 1 #What's this?
-    set_mp4_meta( program, channel, rec_file, index )
+    set_mp4_meta( api, channel, area_id, rec_file )
     if( args.cleanup ):
         removeRecFile( outdir , DT.today() )
     sys.exit(0)
