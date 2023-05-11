@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 # coding: utf-8
-import sys
-import datetime
+#import datetime
 from datetime import datetime as DT
+from datetime import timedelta as TD
 import xml.etree.ElementTree as ET
 import random
 import hashlib
@@ -72,6 +72,7 @@ class RadikoApi():
             for e in now.findall( tmp.format( station , 'img' ) ):
                 self.img.append( e.text )
         else:
+            print( resp.status_code )
             return None
     
     def get_title( self, station, area_id , next=False ):
@@ -130,7 +131,7 @@ class RadikoApi():
 
     def generate_uid(self):
         rnd = random.random() * 1000000000
-        ms = datetime.timedelta.total_seconds(datetime.datetime.now() - datetime.datetime(1970, 1, 1)) * 1000
+        ms = TD.total_seconds(DT.now() - DT(1970, 1, 1)) * 1000
         return hashlib.md5(str(rnd + ms).encode('utf-8')).hexdigest()
 
     def search(self, keyword='', t='past', area_id='JP13'):
@@ -178,10 +179,10 @@ class RadikoApi():
                 return token, res.text.split(',')[0]
             else:
                 print( f'authorize errr at phase#2 : {res.status_code}' )
-                sys.exit(1)
+                return None
         else:
             print( f'authorize errr at phase#1 : {res.status_code}' )
-            sys.exit(1)
+            return None
 
     def dump( self ):
         #print self.d
