@@ -8,6 +8,7 @@ import random
 import hashlib
 import json
 import re
+import base64
 import requests
 
 class RadikoApi():
@@ -72,6 +73,60 @@ class RadikoApi():
                 self.img.append( e.text )
         else:
             return None
+    
+    def get_title( self, station, area_id , next=False ):
+        if next is True:
+            index = 1
+        else:
+            index = 0
+        if self.title == []:
+            self.get_now( station, area_id )
+        return( self.title[index] )
+
+    def get_url( self, station, area_id , next=False ):
+        if next is True:
+            index = 1
+        else:
+            index = 0
+        if self.url == []:
+            self.get_now( station, area_id )
+        return( self.desc[index] )
+
+    def get_desc( self, station, area_id , next=False ):
+        if next is True:
+            index = 1
+        else:
+            index = 0
+        if self.desc == []:
+            self.get_now( station, area_id )
+        return( self.desc[index] )
+    
+    def get_info( self, station, area_id , next=False ):
+        if next is True:
+            index = 1
+        else:
+            index = 0
+        if self.info == []:
+            self.get_now( station, area_id )
+        return( self.info[index] )
+
+    def get_pfm( self, station, area_id , next=False ):
+        if next is True:
+            index = 1
+        else:
+            index = 0
+        if self.pfm == []:
+            self.get_now( station, area_id )
+        return( self.pfm[index] )
+
+    def get_img( self, station, area_id , next=False ):
+        if next is True:
+            index = 1
+        else:
+            index = 0
+        if self.img == []:
+            self.get_now( station, area_id )
+        return( self.img[index] )
 
     def generate_uid(self):
         rnd = random.random() * 1000000000
@@ -96,7 +151,7 @@ class RadikoApi():
         response = requests.get('http://radiko.jp/v3/api/program/search', params=params, timeout=(20,5))
         return json.loads(response.content)
 
-    def authorize():
+    def authorize(self):
         authKey = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
         headers = {
             "x-radiko-app": "pc_html5",
