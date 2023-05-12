@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # coding: utf-8
+import sys
 import argparse
 import shutil
 import mutagen
@@ -21,47 +22,46 @@ def get_args():
                 required=True, \
                 nargs=1, \
                 help="to time" )
-    return parser.parse_args()#
-#
-# get stream-url
-#
-def get_streamurl( channel , authtoken ):
-    url = f'https://f-radiko.smartstream.ne.jp/{ channel }/_definst_/simul-stream.stream/playlist.m3u8'
-    headers =  {
-        "X-Radiko-AuthToken": authtoken,
-    }
-    res  = requests.get(url, headers=headers)
-    res.encoding = "utf-8"
-    if (res.status_code == 200):
-        body = res.text
-        lines = re.findall( f'^https?://.+m3u8$' , body, flags=(re.MULTILINE) )
-        if len(lines) > 0:
-            return lines[0]
-        else:
-            print("Radiko: no m3u8 in the responce.")
-            sys.exit(1)
-    else:
-        print(res.text)
-        print('Radiko: error {} encounterd.'.format(res.status_code) )
-        sys.exit(1)
+    # needed?
+    parser.add_argument('duration', \
+                metavar='duration', \
+                type=float, \
+                help='Duration(minutes)' )
+    parser.add_argument('outputdir', \
+                metavar='outputdir', \
+                nargs='?', \
+                default='.' , \
+                help='Output path default:\'.\'' )
+    parser.add_argument('prefix', \
+                metavar='Prefix name',\
+                nargs='?', \
+                help='Prefix name for output file.' )
+    return parser.parse_args()
 #
 # Time Free record by ffmpeg.
-# Underconstruction
+#
 def tf_rec( auth_token, channel, ft, to, outdir, prefix, date ):
     ffmpeg = shutil.which( 'ffmpeg' )
-    headers = f' -headers "X-Radiko-AuthToken: { auth_token }"'
-    url = ' -i "https://radiko.jp/v2/api/ts/playlist.m3u8?station_id={}&ft={}&to={}"'.format( channel, ft, to )
-    path = '{}/{}_{}.mp3'.format( outdir, prefix, date )
+    if ffmpeg is None:
+        print( 'This tool need ffmpeg to be installed to executable path' )
+        print( 'Soryy, bye.')
+        sys.exit(1)
+    url_parts = f' -i "https://radiko.jp/v2/api/ts/playlist.m3u8?station_id={channel}&ft={ft}&to={to}"'
+    cmd = f'{ffmpeg} -loglevel fatal '
+    cmd += f'-headers "X-Radiko-AuthToken: {auth_token}" -i "{url_parts}" '
+    cmd += f'-acodec copy {outdir}/{prefix}_{date}.mp4'
 
-    cmd = '{} -loglevel quiet -y'.format( ffmpeg )
-    cmd = cmd + headers + url
-    cmd = cmd + ' -acodec libmp3lame -ab 128k -vn {}'.format( path )
-    # Exec ffmpeg
-    subprocess.call( cmd.strip().split(" ")  ) 
+    # Exec ffmpeg...? is there any reason to spec. duration?
+    p1 = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, shell=True)
+    time.sleep( duration )
+    p1.communicate(b'q')
+    time.sleep(10)
+    return f'{outdir}/{prefix}_{date}.mp4'
 #
 # set program meta by mutagen for mp4 file
 #
 def set_mp4_meta( program, channel, area_id, rec_file ):
+    # Gee.. get_now() will not provide propper info.
     program.get_now( channel )
     audio = MP4(rec_file)
     # track title
@@ -79,7 +79,7 @@ def set_mp4_meta( program, channel, area_id, rec_file ):
     coverart = requests.get(logo_url).content
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
-    audio.save()  
+    audio.save()
     return
 
 
