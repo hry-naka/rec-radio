@@ -34,13 +34,6 @@ def get_args():
                 metavar='Prefix name',\
                 nargs='?', \
                 help='Prefix name for output file.' )
-    '''
-    parser.add_argument('-tf', '--timefree', \
-                metavar='timefree id', \
-                nargs=1, \
-                default=None, \
-                help='Time Free Progam ID' )
-    '''
     parser.add_argument( '-c', '--cleanup' , \
                 action='store_true' , \
                 help='Cleanup(remove) output file which recording is not completed.' )
@@ -121,22 +114,6 @@ def live_rec( url_parts, auth_token, prefix, duration, date, outdir ):
     time.sleep(10)
     return f'{outdir}/{prefix}_{date}.mp4'
 #
-# Time Free record by ffmpeg.
-# Underconstruction
-'''
-def tf_rec( auth_token, channel, ft, to, outdir, prefix, date ):
-    ffmpeg = '/usr/bin/ffmpeg'
-    headers = f' -headers "X-Radiko-AuthToken: { auth_token }"'
-    url = ' -i "https://radiko.jp/v2/api/ts/playlist.m3u8?station_id={}&ft={}&to={}"'.format( channel, ft, to )
-    path = '{}/{}_{}.mp3'.format( outdir, prefix, date )
-
-    cmd = '{} -loglevel quiet -y'.format( ffmpeg )
-    cmd = cmd + headers + url
-    cmd = cmd + ' -acodec libmp3lame -ab 128k -vn {}'.format( path )
-    # Exec ffmpeg
-    subprocess.call( cmd.strip().split(" ")  ) 
-'''
-#
 # set program meta by mutagen for mp4 file
 #
 def set_mp4_meta( program, channel, area_id, rec_file ):
@@ -199,7 +176,7 @@ if __name__ == '__main__':
     auth_token, area_id = api.authorize()
     # get program meta via radiko api
     url = get_streamurl( channel ,auth_token )
-    api.get_now(channel, area_id)
+    api.load_program(channel, None, None, area_id, now=True)
     rec_file=live_rec( url, auth_token, prefix, duration, date, outdir )
     '''
     if args.timefree is None:
