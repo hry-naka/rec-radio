@@ -2,7 +2,7 @@
 よくある、ラジオ番組の録音用のpythonスクリプト
 
 ## 仕様
-###NHKラジオの録音用
+### NHKラジオの録音用
 ```
 usage: rec_nhk.py [-h] [--timing [{previous,following,present}]] [-c] channel duration [outputdir] [Prefix name]
 
