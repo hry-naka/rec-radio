@@ -26,7 +26,7 @@ if __name__ == '__main__':
     else:
         result = api.search( keyword=args.keyword, area_id=args.area_id )
     for d in result['data']:
-        print( f"Title:{d['title']}\t", \
-               f"-s {d['station_id']}\t", \
-               f"-ft {re.sub( '[-: ]' ,'' , d['start_time'])}", \
+        print( f"Title:{d['title']}\t\t", \
+               f"-s {d['station_id']} ", \
+               f"-ft {re.sub( '[-: ]' ,'' , d['start_time'])} ", \
                f"-to {re.sub( '[-: ]' ,'' , d['end_time']) }" )
