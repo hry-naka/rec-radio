@@ -1,8 +1,8 @@
 # rec-radio
 よくある、ラジオ番組の録音用のpythonスクリプト
 
-# 仕様
-NHKラジオの録音用
+## 仕様
+###NHKラジオの録音用
 ```
 usage: rec_nhk.py [-h] [--timing [{previous,following,present}]] [-c] channel duration [outputdir] [Prefix name]
 
@@ -19,7 +19,7 @@ optional arguments:
   --timing [{previous,following,present}]
   -c, --cleanup         Cleanup(remove) output file which recording is not completed.
 ```
-radiko用
+### radiko用
 ```
 usage: rec_radiko.py [-h] [-c] channel duration [outputdir] [Prefix name]
 
@@ -36,42 +36,37 @@ optional arguments:
   -c, --cleanup  Cleanup(remove) output file which recording is not completed.
 ```
 
-## メモ
-radikoの番組表xlmの取得APIのメモ（https://ststarfield.blog.fc2.com/blog-entry-150.html）
+### radikoの番組表検索
+```
+usage: find_radiko.py [-h] -k KEYWORD [-a AREA_ID]
 
-【ステーションリスト】
+find keyword in Radiko program.
 
-http://radiko.jp/v3/station/list/JP13.xml
+optional arguments:
+  -h, --help            show this help message and exit
+  -k KEYWORD, --keyword KEYWORD
+                        keyword to be finded in Radiko program.
+  -a AREA_ID, --area_id AREA_ID
+                        area_id in Radiko program(API). ex) 'JP13' is for tokyo/japan
+```
 
-->　東京の場合 JP13
-->　JP+都道府県コード　　ex) 北海道 => JP1　　沖縄=> JP47
+### タイムフリー録音
+```
+usage: tfrec_radiko.py [-h] -s STATION -ft FROMTIME -to TOTIME [-c] [outputdir] [Prefix-name]
 
-＜参考＞　http://nlftp.mlit.go.jp/ksj/gml/codelist/PrefCd.html　国土交通省
+Recording time-free-Radiko.
 
-＜全放送局取得＞
-http://radiko.jp/v3/station/region/full.xml
+positional arguments:
+  outputdir             Output path default:'.'
+  Prefix-name           Prefix name for output file.
 
-【番組表（エリア別）】
-
-＜今現在＞
-http://radiko.jp/v3/program/now/JP13.xml
-
-＜本日＞
-http://radiko.jp/v3/program/today/JP13.xml
-
-＜日付指定＞
-http://radiko.jp/v3/program/date/20171019/JP13.xml
-->　yyyy年mm月dd日　yyyymmdd　　ex)2017年4月1日 => 20170401
-
-【番組表（放送局別）】
-
-＜週間番組表（前後１週間）＞
-http://radiko.jp/v3/program/station/weekly/FMT.xml
--> station_id + .xml ex) TOKYO FM => FMT　　TBSラジオ => TBS
-（station_id　は　ステーションリストから取得可能）
-
-＜今日＞
-http://radiko.jp/v3/program/station/today/FMT.xml
-
-＜日付指定＞
-http://radiko.jp/v3/program/station/date/20171019/FMT.xml
+optional arguments:
+  -h, --help            show this help message and exit
+  -s STATION, --station STATION
+                        Recording station.
+  -ft FROMTIME, --fromtime FROMTIME
+                        from time
+  -to TOTIME, --totime TOTIME
+                        to time
+  -c, --cleanup         Cleanup(remove) output file which recording is not completed.
+  ```
