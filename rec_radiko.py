@@ -140,7 +140,7 @@ def tf_rec( auth_token, channel, ft, to, outdir, prefix, date ):
 # set program meta by mutagen for mp4 file
 #
 def set_mp4_meta( program, channel, area_id, rec_file ):
-    program.get_now( channel )
+    #program.get_now( channel )
     audio = MP4(rec_file)
     # track title
     title = program.get_title( channel, area_id )
@@ -199,6 +199,7 @@ if __name__ == '__main__':
     auth_token, area_id = api.authorize()
     # get program meta via radiko api
     url = get_streamurl( channel ,auth_token )
+    api.get_now(channel, area_id)
     rec_file=live_rec( url, auth_token, prefix, duration, date, outdir )
     '''
     if args.timefree is None:
