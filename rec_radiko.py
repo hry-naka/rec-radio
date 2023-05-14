@@ -34,6 +34,9 @@ def get_args():
                 metavar='Prefix name',\
                 nargs='?', \
                 help='Prefix name for output file.' )
+    parser.add_argument( '-n', '--next' , \
+                action='store_true' , \
+                help='Read tag informtion from next program.' )
     parser.add_argument( '-c', '--cleanup' , \
                 action='store_true' , \
                 help='Cleanup(remove) output file which recording is not completed.' )
@@ -116,21 +119,21 @@ def live_rec( url_parts, auth_token, prefix, duration, date, outdir ):
 #
 # set program meta by mutagen for mp4 file
 #
-def set_mp4_meta( program, channel, area_id, rec_file ):
+def set_mp4_meta( program, channel, area_id, rec_file, next ):
     #program.get_now( channel )
     audio = MP4(rec_file)
     # track title
-    title = program.get_title( channel, area_id )
+    title = program.get_title( channel, area_id,  next)
     if title is not None:
         audio.tags["\xa9nam"] = title
     # album
     audio.tags["\xa9alb"] = channel
     # artist and album artist
-    pfm = program.get_pfm( channel, area_id )
+    pfm = program.get_pfm( channel, area_id ,  next)
     if pfm is not None:
         audio.tags['\aART'] = pfm
         audio.tags["\xa9ART"] = pfm
-    logo_url = program.get_img( channel, area_id )
+    logo_url = program.get_img( channel, area_id ,  next)
     coverart = requests.get(logo_url).content
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
@@ -178,7 +181,7 @@ if __name__ == '__main__':
     url = get_streamurl( channel ,auth_token )
     api.load_program(channel, None, None, area_id, now=True)
     rec_file=live_rec( url, auth_token, prefix, duration, date, outdir )
-    set_mp4_meta( api, channel, area_id, rec_file )
+    set_mp4_meta( api, channel, area_id, rec_file, args.next )
     if( args.cleanup ):
         removeRecFile( outdir , DT.today() )
     sys.exit(0)
