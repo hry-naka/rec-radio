@@ -178,16 +178,6 @@ if __name__ == '__main__':
     url = get_streamurl( channel ,auth_token )
     api.load_program(channel, None, None, area_id, now=True)
     rec_file=live_rec( url, auth_token, prefix, duration, date, outdir )
-    '''
-    if args.timefree is None:
-        index = 1
-        rec_file=live_rec( url, auth_token, prefix, \
-                duration, date, outdir )
-    else:
-        index = 0
-        rec_file=tf_rec( auth_token, channel, ft, to, outdir, prefix, date )
-    '''
-    index = 1 #What's this?
     set_mp4_meta( api, channel, area_id, rec_file )
     if( args.cleanup ):
         removeRecFile( outdir , DT.today() )
