@@ -14,13 +14,17 @@ import requests
 class RadikoApi():
     def __init__(self):
         self.d = DT.today()
-        self.title = self.url = self.desc = self.info = self.pfm = []
+        self.title = []
+        self.url = []
+        self.desc = []
+        self.info = []
+        self.pfm = []
         self.img = []
+        self.duration = []
         self.search_url = 'https://radiko.jp/v3/api/program/search'
-        self.stationlist_url = 'http://radiko.jp/v3/station/list/{}.xml'
-        self.now_url = 'http://radiko.jp/v3/program/now/{}.xml'
-        #self.now_url = now_url.format( area_id )
-        #self.weekly_url = 'http://radiko.jp/v3/program/station/weekly/{}.xml'
+        self.stationlist_url = 'https://radiko.jp/v3/station/list/{}.xml'
+        self.now_url = 'https://radiko.jp/v3/program/now/{}.xml'
+        self.weekly_url = 'https://radiko.jp/v3/program/station/weekly/{}.xml'
         #self.today_url = 'http://radiko.jp/v3/program/today/{}.xml'
         #self.today_url = today_url.format( station_id )
         #self.tomorrow_url = 'http://radiko.jp/v3/program/tomorrow/{}.xml'
@@ -52,29 +56,63 @@ class RadikoApi():
         for name in stationlist.iter('name'):
             namelist.append( name.text )
         return idlist, namelist
-        
-    def get_now(self, station, area_id='JP13'):
+
+    def load_now(self, station, area_id='JP13'):
         self.now_url = self.now_url.format( area_id )
         resp = requests.get( self.now_url, timeout=(20,5) )
         if resp.status_code == 200:
             now = ET.fromstring( resp.content.decode("utf-8") )
-            tmp = './/station[@id="{}"]//*/{}'
-            for e in now.findall( tmp.format( station , 'title' ) ):
+            xpath = './/station[@id="{}"]//*/{}'
+            for e in now.findall( xpath.format( station , 'title' ) ):
                 self.title.append( e.text )
-            for e in now.findall( tmp.format( station , 'url' ) ):
+            for e in now.findall( xpath.format( station , 'url' ) ):
                 self.url.append( e.text )
-            for e in now.findall( tmp.format( station , 'desc' ) ):
+            for e in now.findall( xpath.format( station , 'desc' ) ):
                 self.desc.append( e.text )
-            for e in now.findall( tmp.format( station , 'info' ) ):
+            for e in now.findall( xpath.format( station , 'info' ) ):
                 self.info.append( e.text )
-            for e in now.findall( tmp.format( station , 'pfm' ) ):
+            for e in now.findall( xpath.format( station , 'pfm' ) ):
                 self.pfm.append( e.text )
-            for e in now.findall( tmp.format( station , 'img' ) ):
+            for e in now.findall( xpath.format( station , 'img' ) ):
                 self.img.append( e.text )
+            xpath = f'.//station[@id="{station}"]/progs/prog'
+            for e in now.findall( xpath ):
+                self.duration.append( e.attrib['dur'] )
+        else:
+            print( resp.status_code )
+            return None
+
+    def load_weekly( self, station, ft, to ):
+        self.weekly_url = self.weekly_url.format( station )
+        resp = requests.get( self.weekly_url, timeout=(20,5) )
+        if resp.status_code == 200:
+            weekly = ET.fromstring( resp.content.decode("utf-8") )
+            xpath = './/prog[@ft="{}"][@to="{}"]//{}'
+            for e in weekly.findall( xpath.format( ft, to , 'title' ) ):
+                self.title.append( e.text )
+            for e in weekly.findall( xpath.format( ft, to  , 'url' ) ):
+                self.url.append( e.text )
+            for e in weekly.findall( xpath.format( ft, to , 'desc' ) ):
+                self.desc.append( e.text )
+            for e in weekly.findall( xpath.format( ft, to , 'info' ) ):
+                self.info.append( e.text )
+            for e in weekly.findall( xpath.format( ft, to , 'pfm' ) ):
+                self.pfm.append( e.text )
+            for e in weekly.findall( xpath.format( ft, to , 'img' ) ):
+                self.img.append( e.text )
+            xpath = f'.//prog[@ft="{ft}"][@to="{to}"]'
+            for e in weekly.findall( xpath ):
+                self.duration.append( e.attrib['dur'] )
         else:
             print( resp.status_code )
             return None
     
+    def load_program( self, station, ft, to, area_id='JP13', now=False ):
+        if now:
+            return( self.load_now( station, area_id ))
+        else:
+            return( self.load_weekly( station, ft, to ) )
+
     def get_title( self, station, area_id , next=False ):
         if next is True:
             index = 1
@@ -152,6 +190,8 @@ class RadikoApi():
         response = requests.get('http://radiko.jp/v3/api/program/search', params=params, timeout=(20,5))
         return json.loads(response.content)
 
+
+
     def authorize(self):
         authKey = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
         headers = {
@@ -204,6 +244,9 @@ class RadikoApi():
         print('Img: ')
         for m in self.img:
             print(m)
+        print('Duration: ')
+        for m in self.duration:
+            print(m)
 
 if __name__ == '__main__':
     main = RadikoApi(  )
@@ -219,9 +262,12 @@ if __name__ == '__main__':
 
     main.get_now('JOAK-FM')
     main.dump()
-    '''
     #result = main.search('黒田 卓也')
     result = main.search('生島ヒロシ')
     for d in result['data']:
         print( d['title'], d['station_id'], re.sub( '[-: ]' ,'' , d['start_time']), re.sub( '[-: ]' ,'' , d['end_time']) )
     #print( json.dumps( result, indent=4 ) )
+    '''
+    #main.load_program( 'TBS', "20230509050000", "20230509063000" )
+    main.load_program( 'TBS', None, None, 'JP13', now=True )
+    main.dump()
