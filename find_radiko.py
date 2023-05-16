@@ -22,7 +22,7 @@ def get_args():
         "--area_id",
         required=False,
         nargs=1,
-        help="area_id in Radiko program(API). ex) 'JP13' is for tokyo/japan."
+        help="area_id in Radiko program(API). ex) 'JP13' is for tokyo/japan. "
         "If omitted, this may be auto-retrieved.",
     )
     return parser.parse_args()
