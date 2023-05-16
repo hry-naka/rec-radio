@@ -42,12 +42,13 @@ usage: find_radiko.py [-h] -k KEYWORD [-a AREA_ID]
 
 find keyword in Radiko program.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -k KEYWORD, --keyword KEYWORD
                         keyword to be finded in Radiko program.
   -a AREA_ID, --area_id AREA_ID
-                        area_id in Radiko program(API). ex) 'JP13' is for tokyo/japan
+                        area_id in Radiko program(API). ex) 'JP13' is for tokyo/japan. If omitted, this may be auto-
+                        retrieved.
 ```
 
 ### タイムフリー録音
