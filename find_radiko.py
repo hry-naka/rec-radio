@@ -4,7 +4,7 @@
 import sys
 import argparse
 import re
-from .mypkg.radiko_api import Radikoapi
+from mypkg.radiko_api import Radikoapi
 
 
 def get_args():

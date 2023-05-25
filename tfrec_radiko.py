@@ -8,8 +8,8 @@ import subprocess
 from datetime import datetime as DT
 import requests
 from mutagen.mp4 import MP4, MP4Cover
-from .mypkg.radiko_api import Radikoapi
-from .mypkg.file_op import Fileop
+from mypkg.radiko_api import Radikoapi
+from mypkg.file_op import Fileop
 
 
 def get_args():
