@@ -1,110 +1,120 @@
 #!/usr/bin/python3
 # coding: utf-8
+""" Recording time-free-Radiko. """
 import sys
 import argparse
 import shutil
 import subprocess
-import time
+from datetime import datetime as DT
 import requests
 from mutagen.mp4 import MP4, MP4Cover
-from mypkg.RadikoApi import RadikoApi
+from .mypkg.radiko_api import Radikoapi
+from .mypkg.file_op import Fileop
 
 
 def get_args():
-    parser=argparse.ArgumentParser( description='Recording time-free-Radiko.' )
-    parser.add_argument('-s', '--station', \
-                required=True, \
-                nargs=1, \
-                help='Recording station.' )
-    parser.add_argument('-ft', '--fromtime', \
-                required=True, \
-                nargs=1, \
-                help="from time" )
-    parser.add_argument('-to', '--totime', \
-                required=True, \
-                nargs=1, \
-                help="to time" )
-    parser.add_argument('outputdir', \
-                metavar='outputdir', \
-                nargs='?', \
-                default='.' , \
-                help='Output path default:\'.\'' )
-    parser.add_argument('prefix', \
-                metavar='Prefix-name',\
-                nargs='?', \
-                help='Prefix name for output file.' )
-    parser.add_argument( '-c', '--cleanup' , \
-                action='store_true' , \
-                help='Cleanup(remove) output file which recording is not completed.' )
+    """define arguments and get args"""
+    parser = argparse.ArgumentParser(description="Recording time-free-Radiko.")
+    parser.add_argument(
+        "-s", "--station", required=True, nargs=1, help="Recording station."
+    )
+    parser.add_argument("-ft", "--fromtime", required=True, nargs=1, help="from time")
+    parser.add_argument("-to", "--totime", required=True, nargs=1, help="to time")
+    parser.add_argument(
+        "outputdir",
+        metavar="outputdir",
+        nargs="?",
+        default=".",
+        help="Output path default:'.'",
+    )
+    parser.add_argument(
+        "prefix", metavar="Prefix-name", nargs="?", help="Prefix name for output file."
+    )
+    parser.add_argument(
+        "-c",
+        "--cleanup",
+        action="store_true",
+        help="Cleanup(remove) output file which recording is not completed.",
+    )
     return parser.parse_args()
+
+
 #
 # Time Free record by ffmpeg.
 #
-def tf_rec( auth_token, channel, ft, to, prefix, duration, date, outdir ):
-    ffmpeg = shutil.which( 'ffmpeg' )
+def tf_rec(token, channel, fromtime, totime, pre_fix, time, out_dir):
+    """ffmpeg execution for time free recording"""
+    ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is None:
-        print( 'This tool need ffmpeg to be installed to executable path' )
-        print( 'Soryy, bye.')
+        print("This tool need ffmpeg to be installed to executable path")
+        print("Soryy, bye.")
         sys.exit(1)
-    url = f'https://radiko.jp/v2/api/ts/playlist.m3u8?station_id={channel}&l=15&ft={ft}&to={to}'
-    
-    cmd = f'{ffmpeg} -loglevel fatal '
-    cmd += f'-headers "X-Radiko-AuthToken: {auth_token}" -i "{url}" '
-    cmd += f'-acodec copy {outdir}/{prefix}_{date}.mp4'
-    # Exec ffmpeg...? is there any reason to spec. duration?
-    p1 = subprocess.Popen(cmd, shell=True)
-    p1.wait()
-    if( p1.returncode != 0 ):
-        print( p1.returncode, '\n', p1.stderr, '\n', p1.stdout )
+    url = "https://radiko.jp/v2/api/ts/playlist.m3u8?station_id={}&l=15&ft={}&to={}"
+    url = url.format(channel, fromtime, totime)
+    cmd = f"{ffmpeg} -loglevel fatal "
+    cmd += f'-headers "X-Radiko-AuthToken: {token}" -i "{url}" '
+    cmd += f"-acodec copy {out_dir}/{pre_fix}_{time}.mp4"
+    # Exec ffmpeg...
+    proc = subprocess.Popen(cmd, shell=True)
+    proc.wait()
+    if proc.returncode != 0:
+        print(proc.returncode, "\n", proc.stderr, "\n", proc.stdout)
         sys.exit(1)
-    return f'{outdir}/{prefix}_{date}.mp4'
-#
-# set program meta by mutagen for mp4 file
-#
-def set_mp4_meta( program, channel, area_id, rec_file ):
+    return f"{out_dir}/{pre_fix}_{time}.mp4"
+
+
+def set_mp4_meta(program, channel, area_id, rec_file):
+    """set program meta by mutagen for mp4 file"""
     audio = MP4(rec_file)
     # track title
-    title = program.get_title( channel, area_id )
+    title = program.get_title(channel, area_id)
     if title is not None:
         audio.tags["\xa9nam"] = title
     # album
     audio.tags["\xa9alb"] = channel
     # artist and album artist
-    pfm = program.get_pfm( channel, area_id )
+    pfm = program.get_pfm(channel, area_id)
     if pfm is not None:
-        audio.tags['\aART'] = pfm
+        audio.tags["\aART"] = pfm
         audio.tags["\xa9ART"] = pfm
-    logo_url = program.get_img( channel, area_id )
-    coverart = requests.get(logo_url).content
+    logo_url = program.get_img(channel, area_id)
+    coverart = requests.get(logo_url, timeout=(20, 5)).content
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
     audio.save()
     return
 
 
-if __name__ == '__main__':
+def main():
+    """
+    Main function for the script.
+    """
     args = get_args()
     station = args.station[0]
     if args.prefix is None:
-        prefix=station
+        prefix = station
     else:
-        prefix=args.prefix
-    ft = args.fromtime[0]
-    to = args.totime[0]
+        prefix = args.prefix
+    fromtime = args.fromtime[0]
+    totime = args.totime[0]
     # setting date
-    date = f'{ft[0:4]}-{ft[4:6]}-{ft[6:8]}-{ft[8:10]}_{ft[10:12]}'
+    now = f"{fromtime[0:4]}-{fromtime[4:6]}-{fromtime[6:8]}-{fromtime[8:10]}_{fromtime[10:12]}"
     # Construct RadikoApi
-    api = RadikoApi()
+    api = Radikoapi()
     # Check whether channel is available
-    if api.is_avail( station ) == False:
-        print( f'Specified station {station} is not found.' )
+    if api.is_avail(station) is False:
+        print(f"Specified station {station} is not found.")
         sys.exit(1)
     # auhorize, get token and areaid
-    auth_token, area_id = api.authorize()
+    auth_token, areaid = api.authorize()
     # get program meta via radiko api
-    api.load_program(station, ft, to, area_id)
-    rec_file=tf_rec( auth_token, station, ft, to, prefix, int(api.duration[0]), date, args.outputdir )
-    set_mp4_meta( api, station, area_id, rec_file )
-    if( args.cleanup ):
-        removeRecFile( outdir , DT.today() )
+    api.load_program(station, fromtime, totime, areaid)
+    recfile = tf_rec(auth_token, station, fromtime, totime, prefix, now, args.outputdir)
+    set_mp4_meta(api, station, areaid, recfile)
+    fop = Fileop()
+    if args.cleanup:
+        fop.remove_recfile(args.outputdir, DT.today())
     sys.exit(0)
+
+if __name__ == "__main__":
+    main()
