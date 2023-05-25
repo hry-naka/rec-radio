@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # coding: utf-8
 """
-Module Name
+rec_nhk.py
 
 This module provides functionalities for recording NHK radio.
 
@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime as DT
 import requests
 from mutagen.mp4 import MP4, MP4Cover
-from .mypkg.file_op import Fileop
+from mypkg.file_op import Fileop
 
 
 def get_args():
