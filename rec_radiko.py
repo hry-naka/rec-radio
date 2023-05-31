@@ -72,9 +72,8 @@ def get_streamurl(channel, authtoken):
         lines = re.findall("^https?://.+m3u8$", body, flags=re.MULTILINE)
         if len(lines) > 0:
             return lines[0]
-        else:
-            print("Radiko: no m3u8 in the responce.")
-            sys.exit(1)
+        print("Radiko: no m3u8 in the responce.")
+        sys.exit(1)
     else:
         print(res.text)
         print(f'adiko: error {res.status_code} encounterd.')
@@ -95,14 +94,15 @@ def live_rec(url_parts, auth_token, prefix, duration, date, outdir):
     cmd += f"-acodec copy {outdir}/{prefix}_{date}.mp4"
 
     # Exec ffmpeg
-    proc = subprocess.Popen(
-        cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, shell=True
-    )
+    proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     time.sleep(duration)
     proc.communicate(b"q")
     time.sleep(10)
-    return f"{outdir}/{prefix}_{date}.mp4"
-
+    if proc.returncode != 0:
+        print(f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
+        sys.exit(1)
+    else:
+        return f"{outdir}/{prefix}_{date}.mp4"
 
 
 def set_mp4_meta(program, channel, area_id, rec_file, nextflg):
@@ -127,7 +127,6 @@ def set_mp4_meta(program, channel, area_id, rec_file, nextflg):
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
     audio.save()
-    return
 
 
 def main():

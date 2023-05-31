@@ -64,13 +64,12 @@ def tf_rec(token, channel, fromtime, totime, pre_fix, time, out_dir):
     cmd += f"-acodec copy {out_dir}/{pre_fix}_{time}.mp4"
     # Exec ffmpeg...
     proc = subprocess.run(
-        cmd.split(" "), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd, check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     if proc.returncode != 0:
         print(f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
         sys.exit(1)
-    else:
-        return f"{out_dir}/{pre_fix}_{time}.mp4"
+    return f"{out_dir}/{pre_fix}_{time}.mp4"
 
 
 def set_mp4_meta(program, channel, area_id, rec_file):
@@ -94,7 +93,6 @@ def set_mp4_meta(program, channel, area_id, rec_file):
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
     audio.save()
-    return
 
 
 def main():
