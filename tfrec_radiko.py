@@ -1,6 +1,13 @@
 #!/usr/bin/python3
 # coding: utf-8
-""" Recording time-free-Radiko. """
+"""
+tfrec_radiko.py
+
+This module provides functionalities for recording time-free-Radiko.
+
+Author: Hiroyuki NAKAMURA (https://github.com/hry-naka)
+Date: May 30, 2023
+"""
 import sys
 import argparse
 import shutil
@@ -13,7 +20,9 @@ from mypkg.file_op import Fileop
 
 
 def get_args():
-    """define arguments and get args"""
+    """
+    Get command-line arguments.
+    """
     parser = argparse.ArgumentParser(description="Recording time-free-Radiko.")
     parser.add_argument(
         "-s", "--station", required=True, nargs=1, help="Recording station."
@@ -39,11 +48,10 @@ def get_args():
     return parser.parse_args()
 
 
-#
-# Time Free record by ffmpeg.
-#
 def tf_rec(token, channel, fromtime, totime, pre_fix, time, out_dir):
-    """ffmpeg execution for time free recording"""
+    """
+    Perform time-free recording.
+    """
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is None:
         print("This tool need ffmpeg to be installed to executable path")
@@ -55,16 +63,19 @@ def tf_rec(token, channel, fromtime, totime, pre_fix, time, out_dir):
     cmd += f'-headers "X-Radiko-AuthToken: {token}" -i "{url}" '
     cmd += f"-acodec copy {out_dir}/{pre_fix}_{time}.mp4"
     # Exec ffmpeg...
-    proc = subprocess.Popen(cmd, shell=True)
-    proc.wait()
+    proc = subprocess.run(
+        cmd, check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     if proc.returncode != 0:
-        print(proc.returncode, "\n", proc.stderr, "\n", proc.stdout)
+        print(f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
         sys.exit(1)
     return f"{out_dir}/{pre_fix}_{time}.mp4"
 
 
 def set_mp4_meta(program, channel, area_id, rec_file):
-    """set program meta by mutagen for mp4 file"""
+    """
+    Set metadata tags in the MP4 file.
+    """
     audio = MP4(rec_file)
     # track title
     title = program.get_title(channel, area_id)
@@ -82,7 +93,6 @@ def set_mp4_meta(program, channel, area_id, rec_file):
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
     audio.save()
-    return
 
 
 def main():
@@ -115,6 +125,7 @@ def main():
     if args.cleanup:
         fop.remove_recfile(args.outputdir, DT.today())
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

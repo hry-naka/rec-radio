@@ -117,7 +117,7 @@ def live_rec(dl_url, duration, outdir, prefix, date):
     cmd += f"-i {dl_url} -t {duration} "
     cmd += f"{outdir}/{prefix}_{date}.mp4"
     proc = subprocess.run(
-        cmd.split(" "), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd, check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     if proc.returncode != 0:
         print(f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
@@ -163,7 +163,6 @@ def set_mp4_meta(program, channel, rec_file):
     audio["covr"] = [cover]
     audio.save()
     # print( audio.tags.pprint() )
-    return
 
 
 def main():
