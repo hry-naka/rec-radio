@@ -97,7 +97,6 @@ def live_rec(url_parts, auth_token, prefix, duration, date, outdir):
     proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     time.sleep(duration)
     proc.communicate(b"q")
-    time.sleep(10)
     if proc.returncode != 0:
         print(f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
         sys.exit(1)
@@ -135,8 +134,7 @@ def main():
     """
     args = get_args()
     channel = args.channel
-    stream_delay = 25  # second
-    duration = int(args.duration * 60) + stream_delay
+    duration = int(args.duration * 60)
     outdir = args.outputdir
     if args.prefix is None:
         prefix = args.channel
