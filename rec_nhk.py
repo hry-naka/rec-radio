@@ -171,8 +171,7 @@ def main():
     """
     args = get_args()
     channel = args.channel
-    stream_delay = 40  # second
-    duration = int(args.duration * 60) + stream_delay
+    duration = int(args.duration * 60)
     outdir = args.outputdir
     timing = args.timing
     if args.prefix is None:
