@@ -41,19 +41,12 @@ def get_args():
         "prefix", metavar="Prefix name", nargs="?", help="Prefix name for output file."
     )
     parser.add_argument(
-        "-n",
-        "--next",
-        action="store_true",
-        help="Read tag informtion from next program.",
-    )
-    parser.add_argument(
         "-c",
         "--cleanup",
         action="store_true",
         help="Cleanup(remove) output file which recording is not completed.",
     )
     return parser.parse_args()
-
 
 
 def get_streamurl(channel, authtoken):
@@ -94,34 +87,35 @@ def live_rec(url_parts, auth_token, prefix, duration, date, outdir):
     cmd += f"-acodec copy {outdir}/{prefix}_{date}.mp4"
 
     # Exec ffmpeg
-    proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    proc = subprocess.Popen(
+        cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     time.sleep(duration)
     proc.communicate(b"q")
     if proc.returncode != 0:
-        print(f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
+        print(
+            f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
         sys.exit(1)
     else:
         return f"{outdir}/{prefix}_{date}.mp4"
 
 
-def set_mp4_meta(program, channel, area_id, rec_file, nextflg):
+def set_mp4_meta(program, channel, area_id, rec_file):
     """
     Set metadata tags in the MP4 file.
     """
-    # program.get_now( channel )
     audio = MP4(rec_file)
     # track title
-    title = program.get_title(channel, area_id, nextflg)
+    title = program.get_title(channel, area_id)
     if title is not None:
         audio.tags["\xa9nam"] = title
     # album
     audio.tags["\xa9alb"] = channel
     # artist and album artist
-    pfm = program.get_pfm(channel, area_id, nextflg)
+    pfm = program.get_pfm(channel, area_id)
     if pfm is not None:
         audio.tags["\aART"] = pfm
         audio.tags["\xa9ART"] = pfm
-    logo_url = program.get_img(channel, area_id, nextflg)
+    logo_url = program.get_img(channel, area_id)
     coverart = requests.get(logo_url, timeout=(20, 5)).content
     cover = MP4Cover(coverart)
     audio["covr"] = [cover]
@@ -142,6 +136,7 @@ def main():
         prefix = args.prefix
     # setting date
     date = DT.now().strftime("%Y-%m-%d-%H_%M")
+    fromtime = DT.now().strftime("%Y%m%d%H%M00")
     # Construct RadikoApi
     api = Radikoapi()
     # Check whether channel is available
@@ -152,9 +147,9 @@ def main():
     auth_token, area_id = api.authorize()
     # get program meta via radiko api
     url = get_streamurl(channel, auth_token)
-    api.load_program(channel, None, None, area_id, now=True)
+    api.load_program(channel, fromtime, None, area_id, now=True)
     rec_file = live_rec(url, auth_token, prefix, duration, date, outdir)
-    set_mp4_meta(api, channel, area_id, rec_file, args.next)
+    set_mp4_meta(api, channel, area_id, rec_file)
     fop = Fileop()
     if args.cleanup:
         fop.remove_recfile(outdir, DT.today())

@@ -6,7 +6,6 @@ This module provides a class for performing radiko api.
 from datetime import datetime as DT
 from datetime import timedelta as TD
 import xml.etree.ElementTree as ET
-import re
 import random
 import hashlib
 import json
@@ -18,6 +17,7 @@ class Radikoapi:
     """
     A class for interacting with the Radiko API.
     """
+
     def __init__(self):
         self.title = []
         self.url = []
@@ -45,8 +45,8 @@ class Radikoapi:
         Returns:
             xml.etree.ElementTree.Element: The XML element representing the station list.
         """
-        self.stationlist_url = self.stationlist_url.format(area_id)
-        resp = requests.get(self.stationlist_url, timeout=(20, 5))
+        stationlist_url = self.stationlist_url.format(area_id)
+        resp = requests.get(stationlist_url, timeout=(20, 5))
         if resp.status_code == 200:
             stationlist = ET.fromstring(resp.content.decode("utf-8"))
             return stationlist
@@ -90,37 +90,57 @@ class Radikoapi:
             namelist.append(name.text)
         return idlist, namelist
 
-    def load_now(self, station, area_id="JP13"):
+    def set_member(self, prog, xpath):
+        """
+        Set the program information by xpath.
+
+        Args:
+            prog (xml): xml data of weekly or now program.
+            xpath(str): xpath string.
+
+        Returns:
+            None
+        """
+        for elm in prog.findall(xpath):
+            self.duration.append(elm.attrib["dur"])
+        xpath = xpath + '/{}'
+        for elm in prog.findall(xpath.format("title")):
+            self.title.append(elm.text)
+        for elm in prog.findall(xpath.format("url")):
+            self.url.append(elm.text)
+        for elm in prog.findall(xpath.format("desc")):
+            self.desc.append(elm.text)
+        for elm in prog.findall(xpath.format("info")):
+            self.info.append(elm.text)
+        for elm in prog.findall(xpath.format("pfm")):
+            self.pfm.append(elm.text)
+        for elm in prog.findall(xpath.format("img")):
+            self.img.append(elm.text)
+
+    def load_now(self, station, fromtime, area_id="JP13"):
         """
         Load the current program information for the specified station.
 
         Args:
             station (str): The ID of the station.
+            fromtime(str): The start time of the range in the format "YYYYMMDDHHMMSS".
             area_id (str): The ID of the area. Defaults to "JP13".
 
         Returns:
-            None
+            None if not found or fail
+            True if found
         """
-        self.now_url = self.now_url.format(area_id)
-        resp = requests.get(self.now_url, timeout=(20, 5))
+        now_url = self.now_url.format(area_id)
+        resp = requests.get(now_url, timeout=(20, 5))
         if resp.status_code == 200:
             now = ET.fromstring(resp.content.decode("utf-8"))
-            xpath = './/station[@id="{}"]//*/{}'
-            for elm in now.findall(xpath.format(station, "title")):
-                self.title.append(elm.text)
-            for elm in now.findall(xpath.format(station, "url")):
-                self.url.append(elm.text)
-            for elm in now.findall(xpath.format(station, "desc")):
-                self.desc.append(elm.text)
-            for elm in now.findall(xpath.format(station, "info")):
-                self.info.append(elm.text)
-            for elm in now.findall(xpath.format(station, "pfm")):
-                self.pfm.append(elm.text)
-            for elm in now.findall(xpath.format(station, "img")):
-                self.img.append(elm.text)
-            xpath = f'.//station[@id="{station}"]/progs/prog'
-            for elm in now.findall(xpath):
-                self.duration.append(elm.attrib["dur"])
+            xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{fromtime}"]'
+            if now.find(xpath) is None:
+                xpath = f'.//station[@id="{station}"]//progs/prog'
+                if now.find(xpath) is None:
+                    return None
+            self.set_member(now, xpath)
+            return True
         else:
             print(resp.status_code)
             return None
@@ -135,28 +155,23 @@ class Radikoapi:
             totime (str): The end time of the range in the format "YYYYMMDDHHMMSS".
 
         Returns:
-            None
+            None if not found or fail
+            True if found
         """
-        self.weekly_url = self.weekly_url.format(station)
-        resp = requests.get(self.weekly_url, timeout=(20, 5))
+        weekly_url = self.weekly_url.format(station)
+        resp = requests.get(weekly_url, timeout=(20, 5))
         if resp.status_code == 200:
             weekly = ET.fromstring(resp.content.decode("utf-8"))
-            xpath = './/prog[@ft="{}"][@to="{}"]//{}'
-            for elm in weekly.findall(xpath.format(fromtime, totime, "title")):
-                self.title.append(elm.text)
-            for elm in weekly.findall(xpath.format(fromtime, totime, "url")):
-                self.url.append(elm.text)
-            for elm in weekly.findall(xpath.format(fromtime, totime, "desc")):
-                self.desc.append(elm.text)
-            for elm in weekly.findall(xpath.format(fromtime, totime, "info")):
-                self.info.append(elm.text)
-            for elm in weekly.findall(xpath.format(fromtime, totime, "pfm")):
-                self.pfm.append(elm.text)
-            for elm in weekly.findall(xpath.format(fromtime, totime, "img")):
-                self.img.append(elm.text)
-            xpath = f'.//prog[@ft="{fromtime}"][@to="{totime}"]'
-            for elm in weekly.findall(xpath):
-                self.duration.append(elm.attrib["dur"])
+            if totime is None:
+                xpath = f'.//prog[@ft="{fromtime}"]'
+                if weekly.find(xpath) is None:
+                    return None
+                xpath = xpath.format(fromtime)
+                self.set_member(weekly, xpath)
+            else:
+                xpath = f'.//prog[@ft="{fromtime}"][@to="{totime}"]'
+                self.set_member(weekly, xpath)
+            return True
         else:
             print(resp.status_code)
             return None
@@ -176,7 +191,7 @@ class Radikoapi:
             None
         """
         if now:
-            return self.load_now(station, area_id)
+            return self.load_now(station, fromtime, area_id)
         else:
             return self.load_weekly(station, fromtime, totime)
 
@@ -365,7 +380,7 @@ class Radikoapi:
             offset = int(res.headers["x-radiko-keyoffset"])
             length = int(res.headers["x-radiko-keylength"])
             partial_key = base64.b64encode(
-                authkey[offset : offset + length].encode("ascii")
+                authkey[offset: offset + length].encode("ascii")
             ).decode("utf-8")
             headers = {
                 "x-radiko-authtoken": token,
@@ -396,21 +411,19 @@ class Radikoapi:
 
 
 if __name__ == "__main__":
-    main = Radikoapi()
+    api = Radikoapi()
 
-    print(main.is_avail("TBS"))
-    print(main.is_avail("TXS"))
+    print(api.is_avail("TBS"))
+    print(api.is_avail("TXS"))
 
     print("--------------------")
-    ids, names = main.get_channel()
+    ids, names = api.get_channel()
     for i, station_id in enumerate(ids):
         print(f"{i} station : {station_id}\t\tname : {names[i]}")
     print("--------------------")
 
-    main.get_now("JOAK-FM")
-    main.dump()
-    # result = main.search('黒田 卓也')
-    result = main.search("生島ヒロシ")
+    # result = api.search('黒田 卓也')
+    result = api.search("生島ヒロシ")
     for d in result["data"]:
         print(
             d["title"],
@@ -420,6 +433,10 @@ if __name__ == "__main__":
         )
     # print( json.dumps( result, indent=4 ) )
 
-    main.load_program("TBS", "20230509050000", "20230509063000")
-    main.load_program("TBS", None, None, "JP13", now=True)
-    main.dump()
+    api.load_program("TBS", "20230529050000", "20230529063000")
+    api.dump()
+
+    fromt = DT.now().strftime("%Y%m%d%H%M00")
+    # api.load_program("TBS", fromt, None, now=True)
+    api.load_program("TBS", "20230605190000", None, now=True)
+    api.dump()
