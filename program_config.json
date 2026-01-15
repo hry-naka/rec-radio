@@ -1,0 +1,121 @@
+{
+  "RadioEnglishConversation": {
+    "service": "NHK",
+    "station": "NHK2",
+    "duration": 15,
+    "outputdir": "/home/naka-h/Radio/English/REC",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/REC",
+    "prefix": "REC"
+  },
+  "ModernEnglishFromNEWS": {
+    "service": "NHK",
+    "station": "NHK2",
+    "duration": 15,
+    "outputdir": "/home/naka-h/Radio/English/MEN",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/MEN",
+    "prefix": "MEN"
+  },
+  "EverydayChinese": {
+    "service": "NHK",
+    "station": "NHK2",
+    "duration": 15,
+    "outputdir": "/home/naka-h/Radio/Chinese/ECN",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Chinese/ECN",
+    "prefix": "ECN"
+  },
+  "EikaiwaTimeTria": {
+    "service": "NHK",
+    "station": "NHK2",
+    "duration": 10,
+    "outputdir": "/home/naka-h/Radio/English/ETT",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/ETT",
+    "prefix": "ETT"
+  },
+  "EnjoySimpleEnglish": {
+    "service": "NHK",
+    "station": "NHK2",
+    "duration": 5,
+    "outputdir": "/home/naka-h/Radio/English/ESE",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/ESE",
+    "prefix": "ESE"
+  },
+  "JazzReminiscence": {
+    "service": "Radiko",
+    "station": "INT",
+    "duration": 30,
+    "outputdir": "/home/naka-h/Radio/Music/JR",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/JR",
+    "prefix": "JazzReminiscence"
+  },
+  "LabrinthInClassic": {
+    "service": "NHK",
+    "station": "FM",
+    "duration": 100,
+    "outputdir": "/home/naka-h/Radio/Music/LIC",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/LIC",
+    "prefix": "Labyrinth"
+  },
+  "OtonaJazzTime": {
+    "service": "Radiko",
+    "station": "JORF",
+    "duration": 60,
+    "outputdir": "/home/naka-h/Radio/Music/OJT",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/OJT",
+    "prefix": "OtonaJazzTime"
+  },
+  "JazzTonight": {
+    "service": "NHK",
+    "station": "FM",
+    "duration": 120,
+    "outputdir": "/home/naka-h/Radio/Music/JT",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/JT",
+    "prefix": "JazzTonight",
+    "option": "--timing following"
+  },
+  "KakeruClassic": {
+    "service": "NHK",
+    "station": "FM",
+    "duration": 110,
+    "outputdir": "/home/naka-h/Radio/Music/KKC",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/KKC",
+    "prefix": "KakeruClassic",
+    "option": "--timing following"
+  },
+  "TasteOfJazz": {
+    "service": "Radiko",
+    "station": "RN1",
+    "duration": 30,
+    "outputdir": "/home/naka-h/Radio/Music/TJ",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/TJ",
+    "prefix": "TasteOfJazz"
+  },
+  "TasteOfJazzANNEX": {
+    "service": "Radiko",
+    "station": "RN1",
+    "duration": 30,
+    "outputdir": "/home/naka-h/Radio/Music/TJA",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/TJA",
+    "prefix": "TasteOfJazzANNEX"
+  },
+  "JazzVoyage": {
+    "service": "NHK",
+    "station": "FM",
+    "duration": 50,
+    "outputdir": "/home/naka-h/Radio/Music/JV",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/JV",
+    "prefix": "JazzVoyage",
+    "last_weekday_override": {
+    	"outputdir": "/home/naka-h/Radio/Music/Misc",
+    	"destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/Misc",
+    	"prefix": "BorderlessMusicDig"
+    }
+  },
+  "Murakami": {
+    "service": "Radiko",
+    "station": "FMT",
+    "duration": 55,
+    "outputdir": "/home/naka-h/Radio/Music/Murakami",
+    "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/Murakami",
+    "prefix": "Murakami"
+  }
+}
