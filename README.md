@@ -71,3 +71,63 @@ optional arguments:
                         to time
   -c, --cleanup         Cleanup(remove) output file which recording is not completed.
   ```
+
+### ラッパー録音スクリプト（record_radio.py）
+
+usage: python3 record_radio.py <station> <prefix> [-c]
+
+- station: 放送局名（例: NHK2, NHK-FM）
+- prefix: program_config.json に記載された番組識別子（例: REC, JazzVoyage）
+- -c: cleanupモード（録音後に最大サイズのファイルのみ残し、OneDrive同期を実行）
+
+このラッパーは、stationとprefixに一致する番組設定を program_config.json から選び、
+録音スクリプト（rec_nhk.py / rec_radiko.py）を呼び出します。
+
+録音対象の時刻判定は cron によって制御されるため、program_config.json から times は削除されました。
+
+### program_config.json の構造（例）
+
+{
+  "RadioEnglishConversation": {
+    "service": "NHK",
+    "station": "NHK2",
+    "duration": 15,
+    "outputdir": "/home/user/Radio/English/REC",
+    "destdir": "/home/user/OneDrive/Sound/Radio/English/REC",
+    "prefix": "REC",
+    "month_end_only": false
+  }
+}
+
+- service: 使用する録音スクリプト（NHK または Radiko）
+- station: 放送局名（NHK2, NHK-FM など）
+- duration: 録音時間（分）
+- outputdir: 一時保存先
+- destdir: cleanup時の保存先
+- prefix: ファイル名の先頭識別子
+- month_end_only: true の場合、月末日曜のみ録音
+
+### streaming_config.json の構造と役割
+
+録音スクリプト（rec_nhk.py / rec_radiko.py）を呼び出す前に、サービスごとの遅延対策として sleep を挿入するための設定ファイルです。
+
+構造は以下のようになります：
+
+```json
+{
+  "NHK": {
+    "sleep": 0
+  },
+  "Radiko": {
+    "sleep": 5
+  }
+}
+
+### crontab 設定例
+
+# 通常録音（cleanupなし）
+45 06 * * Mon-Fri python3 /home/user/Radio/record_radio.py NHK2 REC >> /home/user/Radio/logs/record_radio.log 2>&1
+
+# cleanup付き録音（最終回処理）
+30 21 * * Mon-Fri python3 /home/user/Radio/record_radio.py NHK2 REC -c >> /home/user/Radio/logs/record_radio.log 2>&1
+

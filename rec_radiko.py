@@ -11,6 +11,7 @@ Date: May 25, 2023
 import argparse
 import sys
 import shutil
+import shlex
 import subprocess
 import time
 from datetime import datetime as DT
@@ -82,45 +83,107 @@ def live_rec(url_parts, auth_token, prefix, duration, date, outdir):
         print("This tool need ffmpeg to be installed to executable path")
         print("Soryy, bye.")
         sys.exit(1)
-    cmd = f"{ffmpeg} -loglevel fatal "
-    cmd += f'-headers "X-Radiko-AuthToken: {auth_token}" -i "{url_parts}" '
+    cmd = f"{ffmpeg} -loglevel warning -y "
+    #cmd += f"{ffmpeg} -loglevel fatal -y "
+    #cmd += f"{ffmpeg} -loglevel info -y "
+    cmd += "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
+    cmd += "-reconnect_delay_max 600 "
+    cmd += '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36" '
+    cmd += f'-headers "X-Radiko-AuthToken: {auth_token}\r\n" -i "{url_parts}" '
+    cmd += f'-t {duration+5} '
     cmd += f"-acodec copy {outdir}/{prefix}_{date}.mp4"
+    print( cmd , flush=True)
 
     # Exec ffmpeg
-    proc = subprocess.Popen(
-        cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    time.sleep(duration)
-    proc.communicate(b"q")
-    if proc.returncode != 0:
-        print(
-            f"ffmpeg abnormal end. {proc.returncode}, {proc.stdout}, {proc.stderr}")
-        sys.exit(1)
-    else:
+    try:
+        result = subprocess.run(
+            shlex.split(cmd),
+            capture_output=True,   # capture stdout/stderr
+            text=True,             # automatic decode
+            check=True             # if returncode != 0 throw exception
+        )
+        # log output when success
+        print(result.stdout, flush=True)
+        print(result.stderr, flush=True)
         return f"{outdir}/{prefix}_{date}.mp4"
+    except subprocess.CalledProcessError as e:
+        # log output when not success
+        print(f"ffmpeg abnormal end. returncode={e.returncode}", flush=True)
+        print(e.stdout, flush=True)
+        print(e.stderr, flush=True)
+        sys.exit(1)
 
+#def set_mp4_meta(program, channel, area_id, rec_file):
+#    """
+#    Set metadata tags in the MP4 file.
+#    """
+#    audio = MP4(rec_file)
+#    # track title
+#    title = program.get_title(channel, area_id)
+#    if title is not None:
+#        audio.tags["\xa9nam"] = title
+#    # album
+#    audio.tags["\xa9alb"] = channel
+#    # artist and album artist
+#    pfm = program.get_pfm(channel, area_id)
+#    if pfm is not None:
+#        audio.tags["\aART"] = pfm
+#        audio.tags["\xa9ART"] = pfm
+#    logo_url = program.get_img(channel, area_id)
+#    coverart = requests.get(logo_url, timeout=(20, 5)).content
+#    cover = MP4Cover(coverart)
+#    audio["covr"] = [cover]
+#    audio.save()
 
-def set_mp4_meta(program, channel, area_id, rec_file):
+def set_mp4_meta(program, channel, area_id, rec_file, track_num=None):
     """
     Set metadata tags in the MP4 file.
     """
     audio = MP4(rec_file)
-    # track title
-    title = program.get_title(channel, area_id)
-    if title is not None:
-        audio.tags["\xa9nam"] = title
-    # album
-    audio.tags["\xa9alb"] = channel
-    # artist and album artist
-    pfm = program.get_pfm(channel, area_id)
-    if pfm is not None:
-        audio.tags["\aART"] = pfm
-        audio.tags["\xa9ART"] = pfm
-    logo_url = program.get_img(channel, area_id)
-    coverart = requests.get(logo_url, timeout=(20, 5)).content
-    cover = MP4Cover(coverart)
-    audio["covr"] = [cover]
-    audio.save()
 
+    # タイトル
+    title = program.get_title(channel, area_id)
+    if title:
+        audio.tags["\xa9nam"] = title
+
+    # アルバム（局名）
+    audio.tags["\xa9alb"] = channel
+
+    # アーティスト（パーソナリティ）
+    pfm = program.get_pfm(channel, area_id)
+    if pfm:
+        audio.tags["\xa9ART"] = pfm
+        audio.tags["aART"] = pfm
+
+    # コメント（番組説明や info）
+    desc = program.get_desc(channel, area_id)
+    info = program.get_info(channel, area_id)
+    comment_text = ""
+    if desc:
+        comment_text += desc
+    if info:
+        comment_text += " / " + info
+    if comment_text:
+        audio.tags["\xa9cmt"] = comment_text
+
+    # ジャンル
+    audio.tags["\xa9gen"] = "Radio"
+
+    # トラック番号（録音回数などを渡せるように）
+    if track_num:
+        audio.tags["trkn"] = [(track_num, 0)]
+
+    # ディスク番号（固定で 1）
+    audio.tags["disk"] = [(1, 1)]
+
+    # カバーアート
+    logo_url = program.get_img(channel, area_id)
+    if logo_url:
+        coverart = requests.get(logo_url, timeout=(20, 5)).content
+        cover = MP4Cover(coverart, imageformat=MP4Cover.FORMAT_PNG)
+        audio["covr"] = [cover]
+
+    audio.save()
 
 def main():
     """
@@ -137,6 +200,7 @@ def main():
     # setting date
     date = DT.now().strftime("%Y-%m-%d-%H_%M")
     fromtime = DT.now().strftime("%Y%m%d%H%M00")
+    print( f"fromtime = {fromtime}" )
     # Construct RadikoApi
     api = Radikoapi()
     # Check whether channel is available
@@ -147,8 +211,11 @@ def main():
     auth_token, area_id = api.authorize()
     # get program meta via radiko api
     url = get_streamurl(channel, auth_token)
-    api.load_program(channel, fromtime, None, area_id, now=True)
+    # load program info
+    prog = api.load_program(channel, fromtime, None, area_id, now=True)
     rec_file = live_rec(url, auth_token, prefix, duration, date, outdir)
+    if prog is None:
+        api.load_program(channel, fromtime, None, area_id, now=True)
     set_mp4_meta(api, channel, area_id, rec_file)
     fop = Fileop()
     if args.cleanup:

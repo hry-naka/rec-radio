@@ -30,7 +30,8 @@ class Radikoapi:
         self.stationlist_url = "https://radiko.jp/v3/station/list/{}.xml"
         self.now_url = "https://radiko.jp/v3/program/now/{}.xml"
         self.weekly_url = "https://radiko.jp/v3/program/station/weekly/{}.xml"
-        # self.today_url = 'http://radiko.jp/v3/program/today/{}.xml'
+        #self.today_url = 'http://radiko.jp/v3/program/today/{}.xml'
+        self.today_url = "http://radiko.jp/v3/program/station/date/{}/{}.xml"
         # self.today_url = today_url.format( station_id )
         # self.tomorrow_url = 'http://radiko.jp/v3/program/tomorrow/{}.xml'
         # self.tomorrow_url = tomorrow_url.format( station_id )
@@ -117,33 +118,139 @@ class Radikoapi:
         for elm in prog.findall(xpath.format("img")):
             self.img.append(elm.text)
 
+#    def load_now(self, station, fromtime, area_id="JP13"):
+#        """
+#        Load the current program information for the specified station.
+#
+#        Args:
+#            station (str): The ID of the station.
+#            fromtime(str): The start time of the range in the format "YYYYMMDDHHMMSS".
+#            area_id (str): The ID of the area. Defaults to "JP13".
+#
+#        Returns:
+#            None if not found or fail
+#            True if found
+#        """
+#        now_url = self.now_url.format(area_id)
+#        resp = requests.get(now_url, timeout=(20, 5))
+#        if resp.status_code == 200:
+#            #print( "======Response=====" )
+#            #print( resp.content.decode("utf-8") )
+#            now = ET.fromstring(resp.content.decode("utf-8"))
+#            xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{fromtime}"]'
+#            if now.find(xpath) is None:
+#                print( f"Fromtime={fromtime} not found. overwriten." )
+#                xpath = f'.//station[@id="{station}"]//progs/prog'
+#                if now.find(xpath) is None:
+#                    return None
+#            self.set_member(now, xpath)
+#            return True
+#        else:
+#            print(resp.status_code)
+#            return None
+
+    def load_today(self, station, current, area_id="JP13"):
+        """
+        今日の番組表を取得して current に一致する番組を set_member する。
+        station: 局ID (例: "INT")
+        current: YYYYMMDDHHMMSS 文字列（録音開始時刻など）
+        """
+        url = self.today_url.format(current[:8],station)
+        print( url )
+        resp = requests.get(url, timeout=(20, 5))
+        if resp.status_code != 200:
+            print(f"Error: {resp.status_code}")
+            return None
+
+        root = ET.fromstring(resp.content.decode("utf-8"))
+        progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
+        if not progs:
+            print("No programs found for today.")
+            return None
+
+        # ft/to の範囲に current が入る番組を探す
+        for prog in progs:
+            ft = prog.attrib.get("ft")
+            to = prog.attrib.get("to")
+            if ft and to and ft <= current < to:
+                title_elem = prog.find("title")
+                pfm_elem = prog.find("pfm")
+                info_elem = prog.find("info")
+
+                title = title_elem.text if title_elem is not None else ""
+                pfm = pfm_elem.text if pfm_elem is not None else ""
+                info = info_elem.text if info_elem is not None else ""
+
+                # ログ出力
+                print("=== Program Found (today) ===")
+                print(f"Current time: {current}")
+                print(f"Station: {station}")
+                print(f"From: {ft}")
+                print(f"To:   {to}")
+                print(f"Title: {title}")
+                print(f"Pfm:   {pfm}")
+                print("=============================")
+
+                # set_member に渡す
+                xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{ft}"]'
+                self.set_member(root, xpath)
+                return True
+
+        print("No program found in today's schedule for current time.")
+        return None
+
+
     def load_now(self, station, fromtime, area_id="JP13"):
-        """
-        Load the current program information for the specified station.
-
-        Args:
-            station (str): The ID of the station.
-            fromtime(str): The start time of the range in the format "YYYYMMDDHHMMSS".
-            area_id (str): The ID of the area. Defaults to "JP13".
-
-        Returns:
-            None if not found or fail
-            True if found
-        """
         now_url = self.now_url.format(area_id)
         resp = requests.get(now_url, timeout=(20, 5))
-        if resp.status_code == 200:
-            now = ET.fromstring(resp.content.decode("utf-8"))
-            xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{fromtime}"]'
-            if now.find(xpath) is None:
-                xpath = f'.//station[@id="{station}"]//progs/prog'
-                if now.find(xpath) is None:
-                    return None
-            self.set_member(now, xpath)
-            return True
-        else:
+        if resp.status_code != 200:
             print(resp.status_code)
             return None
+
+        now = ET.fromstring(resp.content.decode("utf-8"))
+
+        # 現在時刻を JST の文字列と比較できるように整形
+        # current = DT.now().strftime("%Y%m%d%H%M%S")
+        print( DT.now().strftime("%Y%m%d%H%M%S") )
+        current = fromtime
+
+        # station の prog を全部取得
+        progs = now.findall(f'.//station[@id="{station}"]//progs/prog')
+        if not progs:
+            return None
+
+        # ft, to の範囲に現在時刻が入っているものを探す
+        for prog in progs:
+            ft = prog.attrib.get("ft")  # 例: "20251117090000"
+            to = prog.attrib.get("to")  # 例: "20251117100000"
+            print(f"From: {ft}")
+            print(f"To:   {to}")
+            print(f"Compare: {ft} <= {current} < {to} ? {ft <= current < to}")
+            if ft and to and ft <= current < to:
+               title_elem = prog.find("title")
+               pfm_elem = prog.find("pfm")
+               info_elem = prog.find("info")
+
+               title = title_elem.text if title_elem is not None else ""
+               pfm = pfm_elem.text if pfm_elem is not None else ""
+               info = info_elem.text if info_elem is not None else ""
+
+               # ★ログ出力（主要データ）
+               print("=== Current Program Found ===")
+               print(f"Current time: {current}")
+               print(f"Station: {station}")
+               print(f"From: {ft}")
+               print(f"To:   {to}")
+               print(f"Title: {title}")
+               print(f"Pfm:   {pfm}")
+               print("=============================")
+               # 範囲内にある番組を採用
+               xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{ft}"]'
+               self.set_member(now, xpath)
+               return True
+
+        print("No program found in current time range.")
+        return None
 
     def load_weekly(self, station, fromtime, totime):
         """
@@ -191,7 +298,11 @@ class Radikoapi:
             None
         """
         if now:
-            return self.load_now(station, fromtime, area_id)
+            return self.load_today(station, fromtime, area_id)
+            #result = self.load_now(station, fromtime, area_id)
+            #if result is None:
+            #    return self.load_today(station, fromtime, area_id)
+            #return result
         else:
             return self.load_weekly(station, fromtime, totime)
 
