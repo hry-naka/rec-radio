@@ -16,8 +16,6 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --timing [{previous,following,present}]
-  -c, --cleanup         Cleanup(remove) output file which recording is not completed.
 ```
 ### radiko用
 ```
@@ -125,9 +123,5 @@ usage: python3 record_radio.py <station> <prefix> [-c]
 
 ### crontab 設定例
 
-# 通常録音（cleanupなし）
-45 06 * * Mon-Fri python3 /home/user/Radio/record_radio.py NHK2 REC >> /home/user/Radio/logs/record_radio.log 2>&1
-
-# cleanup付き録音（最終回処理）
-30 21 * * Mon-Fri python3 /home/user/Radio/record_radio.py NHK2 REC -c >> /home/user/Radio/logs/record_radio.log 2>&1
+crontab.example を参照
 
