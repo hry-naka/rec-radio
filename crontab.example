@@ -1,70 +1,100 @@
-PYTHONPATH=/home/naka-h/test/rec-radio:$PYTHONPATH
-# Enjoy Simple English
-ESE=/home/pub/Sound/Radio/English/ESE
-#10  9 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 6 $ESE ESE
-10  9 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $ESE ESE
-10 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $ESE ESE -c
-#20 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ESE
-# Vocabularider
-VOC=/home/pub/Sound/Radio/English/VOC
-#05  9 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 6 $VOC VOC
-05  9 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $VOC VOC
-35 23 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 5 $VOC VOC -c
-#45 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $VOC
-# Eikaiwa Time Trial
-ETT=/home/pub/Sound/Radio/English/ETT
-#30  8 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 11 $ETT ETT
-30  8 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 10 $ETT ETT
-25 18 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 10 $ETT ETT -c
-#40 18 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ETT
+# Edit this file to introduce tasks to be run by cron.
+# 
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+# 
+# To define the time you can provide concrete values for
+# minute (m), hour (h), day of month (dom), month (mon),
+# and day of week (dow) or use '*' in these fields (for 'any').
+# 
+# Notice that tasks will be started based on the cron's system
+# daemon's notion of time and timezones.
+# 
+# Output of the crontab jobs (including errors) is sent through
+# email to the user the crontab file belongs to (unless redirected).
+# 
+# For example, you can run a backup of all your user accounts
+# at 5 a.m every week with:
+# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+# 
+# For more information see the manual pages of crontab(5) and cron(8)
+# 
+# m h  dom mon dow   command
+
+#@reboot $HOME/.dropbox-dist/dropboxd &
+#00  5 * * * /usr/local/bin/sa-learn-home.sh > /dev/null 2>&1
+#00 12 1 * * /usr/bin/find $HOME/Maildir/.LogWatch/cur/ -ctime +720 -type f -exec /bin/rm -f {} \;
+
+# Update ONAMAE.com DNS
+#NAME=/home/naka-h/git/update-onamae
+#*/30 * * * * $NAME/update-onamae.py -f $NAME/.onamae-env >/dev/null 2>&1
+
+P=/home/naka-h/git/rec-radio
+RP=/home/naka-h/git/rec-radio
+LOGS=/home/naka-h/.local/logs/record_radio.log
+# following line is wrong. $PYTHONPATH doesn't expand, due to cron's spec.
+#PYTHONPATH=/home/naka-h/git/rec-radio:$PYTHONPATH
+# if add new path to PYTHON class library, append ':/new/path/to/lib'.
+PYTHONPATH=/home/naka-h/git/rec-radio
+RECPY=/home/naka-h/git/rec-radio/.venv/bin/python
+
+# Gogaku on NHK R2
 # Radio English Conversaton
-REC=/home/pub/Sound/Radio/English/REC/
-#25 12 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 16 $REC REC
-25 12 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $REC REC
-45 21 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $REC REC -c
-#55 23 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $REC
+45  6 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
+25 12 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
+15 19 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
+30 21 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC -c >> $LOGS 2>&1
+
+# Eikaiwa Time Trial
+30  8 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
+15 12 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
+25 18 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
+00 23 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT -c >> $LOGS 2>&1
+
+# Enjoy Simple English
+55 12 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ESE >> $LOGS 2>&1
+25 16 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ESE >> $LOGS 2>&1
+10 23 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ESE -c >> $LOGS 2>&1
+
+# Modern English from NEWS
+30  9 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 MEN >> $LOGS 2>&1
+45 11 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 MEN >> $LOGS 2>&1
+45 20 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 MEN -c >> $LOGS 2>&1
+
 # Everyday Chinese
-ECN=/home/pub/Sound/Radio/Chinese/ECN/
-#15  8 * * Mon-Fri	$HOME/bin/rec_nhk.py NHK2 16 $ECN ECN
-15  8 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $ECN ECN
-15 22 * * Mon-Fri	$HOME/test/rec-radio/rec_nhk.py NHK2 15 $ECN ECN -c
-#35 22 * * Mon-Fri	$HOME/test/rec-radio/remove-rec.py $ECN
+15  8 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ECN >> $LOGS 2>&1
+00 10 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ECN >> $LOGS 2>&1
+40 13 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ECN -c >> $LOGS 2>&1
+
+# Force sysnchronzie midnight on Mon-Fri.
+30 23 * * Mon-Fri onedrive --synchronize >> $LOGS 2>&1
+
+# JazzReminiscence
+00 21 * * Tue $RECPY $RP/record_radio.py INT JazzReminiscence -c >> $LOGS 2>&1
 # Labrinth 
-LIC=/home/pub/Sound/Radio/Music/LIC
-20 19 * * Sat	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 100 $LIC Labyrinth
-# KakeruClassic
-KKC=/home/pub/Sound/Radio/Music/KKC
-00 14 * * Sun	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 110 $KKC KakeruClassic
-# Moon Flight by Takuya Kuroda
-KMF=/home/pub/Sound/Radio/Music/KMF/
-00 21 * * Tue	$HOME/test/rec-radio/rec_radiko.py INT 30 $KMF MoonFlight
-# All that jazz
-ATJ=/home/pub/Sound/Radio/Music/ATJ
-30 20 * * Wed	$HOME/test/rec-radio/rec_radiko.py INT 30 $ATJ AllThatJazz
-# Jazz Tonight
-JT=/home/pub/Sound/Radio/Music/JT/
-00 23 * * Sat	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 120 $JT JazzTonight
+25 19 * * Sat $RECPY $RP/record_radio.py FM Labyrinth -c >> $LOGS 2>&1
 # Otona Jazz Time
-OJT=/home/pub/Sound/Radio/Music/OJT
-00 23 * * Sat	$HOME/test/rec-radio/rec_radiko.py JORF 60 $OJT OtonaJazzTime
+00 23 * * Sat $RECPY $RP/record_radio.py JORF OtonaJazzTime -c >> $LOGS 2>&1
+# Jazz Tonight
+00 23 * * Sat $RECPY $RP/record_radio.py FM JazzTonight -c >> $LOGS 2>&1
+
+# Force sysnchronzie midnight on Sat.
+30 01 * * Sun onedrive --synchronize >> $LOGS 2>&1
+
+# KakeruClassic
+00 14 * * Sun $RECPY $RP/record_radio.py FM KakeruClassic -c >> $LOGS 2>&1
 # Taste of Jazz
-TJ=/home/pub/Sound/Radio/Music/TJ/
-#30 18 * * Fri	$HOME/test/rec-radio/rec_radiko.py RN1 30 $TJ TasteOfJazz
-00 19 * * Sun	$HOME/test/rec-radio/rec_radiko.py RN1 30 $TJ TasteOfJazz
+00 19 * * Sun $RECPY $RP/record_radio.py RN1 TasteOfJazz -c >> $LOGS 2>&1
+# Taste of Jazz Annex (last sunday only)
+30 19 25 1 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
+30 19 22 2 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
 # Jazz Voyage
-JV=/home/pub/Sound/Radio/Music/JV/
-50 21 * * Sun	$HOME/test/rec-radio/rec_radiko.py JOAK-FM 50 $JV JazzVoyage
+50 21 * * Sun $RECPY $RP/record_radio.py FM JazzVoyage -c >> $LOGS 2>&1
 # Murakami Radio
-MURA=/home/pub/Sound/Radio/Music/Murakami
-00 19 26 3 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
-00 19 30 4 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
-00 19 28 5 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
-00 19 25 6 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
-00 19 30 7 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
-00 19 27 8 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
-00 19 24 9 *	$HOME/test/rec-radio/rec_radiko.py FMT 55 $MURA Murakami
-# Test
-20 16 * * Sat	$HOME/test/rec-radio/rec_nhk.py NHK2 3 $HOME/test/rec-radio TST
-25 16 * * Sat	$HOME/test/rec-radio/rec_radiko.py INT 3 $HOME/test/rec-radio TST
-#25 12 * * Thu	$HOME/bin/rec_nhk.py NHK1 1 $HOME/Dropbox TST
-#07 18 * * Fri	$HOME/bin/rec_radiko.py TBS 1 $HOME/Dropbox TST
+# last sunday on every month
+00 19 25 1 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+00 19 22 2 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+
+# Force sysnchronzie midnight on Sun.
+30 23 * * Sun onedrive --synchronize >> $LOGS 2>&1
