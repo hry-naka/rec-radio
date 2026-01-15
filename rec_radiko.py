@@ -19,7 +19,6 @@ import re
 import requests
 from mutagen.mp4 import MP4, MP4Cover
 from mypkg.radiko_api import Radikoapi
-from mypkg.file_op import Fileop
 
 
 def get_args():
@@ -40,12 +39,6 @@ def get_args():
     )
     parser.add_argument(
         "prefix", metavar="Prefix name", nargs="?", help="Prefix name for output file."
-    )
-    parser.add_argument(
-        "-c",
-        "--cleanup",
-        action="store_true",
-        help="Cleanup(remove) output file which recording is not completed.",
     )
     return parser.parse_args()
 
@@ -70,7 +63,7 @@ def get_streamurl(channel, authtoken):
         sys.exit(1)
     else:
         print(res.text)
-        print(f'adiko: error {res.status_code} encounterd.')
+        print(f"adiko: error {res.status_code} encounterd.")
         sys.exit(1)
 
 
@@ -84,23 +77,23 @@ def live_rec(url_parts, auth_token, prefix, duration, date, outdir):
         print("Soryy, bye.")
         sys.exit(1)
     cmd = f"{ffmpeg} -loglevel warning -y "
-    #cmd += f"{ffmpeg} -loglevel fatal -y "
-    #cmd += f"{ffmpeg} -loglevel info -y "
+    # cmd += f"{ffmpeg} -loglevel fatal -y "
+    # cmd += f"{ffmpeg} -loglevel info -y "
     cmd += "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
     cmd += "-reconnect_delay_max 600 "
     cmd += '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36" '
     cmd += f'-headers "X-Radiko-AuthToken: {auth_token}\r\n" -i "{url_parts}" '
-    cmd += f'-t {duration+5} '
+    cmd += f"-t {duration+5} "
     cmd += f"-acodec copy {outdir}/{prefix}_{date}.mp4"
-    print( cmd , flush=True)
+    print(cmd, flush=True)
 
     # Exec ffmpeg
     try:
         result = subprocess.run(
             shlex.split(cmd),
-            capture_output=True,   # capture stdout/stderr
-            text=True,             # automatic decode
-            check=True             # if returncode != 0 throw exception
+            capture_output=True,  # capture stdout/stderr
+            text=True,  # automatic decode
+            check=True,  # if returncode != 0 throw exception
         )
         # log output when success
         print(result.stdout, flush=True)
@@ -113,27 +106,6 @@ def live_rec(url_parts, auth_token, prefix, duration, date, outdir):
         print(e.stderr, flush=True)
         sys.exit(1)
 
-#def set_mp4_meta(program, channel, area_id, rec_file):
-#    """
-#    Set metadata tags in the MP4 file.
-#    """
-#    audio = MP4(rec_file)
-#    # track title
-#    title = program.get_title(channel, area_id)
-#    if title is not None:
-#        audio.tags["\xa9nam"] = title
-#    # album
-#    audio.tags["\xa9alb"] = channel
-#    # artist and album artist
-#    pfm = program.get_pfm(channel, area_id)
-#    if pfm is not None:
-#        audio.tags["\aART"] = pfm
-#        audio.tags["\xa9ART"] = pfm
-#    logo_url = program.get_img(channel, area_id)
-#    coverart = requests.get(logo_url, timeout=(20, 5)).content
-#    cover = MP4Cover(coverart)
-#    audio["covr"] = [cover]
-#    audio.save()
 
 def set_mp4_meta(program, channel, area_id, rec_file, track_num=None):
     """
@@ -185,6 +157,7 @@ def set_mp4_meta(program, channel, area_id, rec_file, track_num=None):
 
     audio.save()
 
+
 def main():
     """
     Main function for the script.
@@ -200,7 +173,7 @@ def main():
     # setting date
     date = DT.now().strftime("%Y-%m-%d-%H_%M")
     fromtime = DT.now().strftime("%Y%m%d%H%M00")
-    print( f"fromtime = {fromtime}" )
+    print(f"fromtime = {fromtime}")
     # Construct RadikoApi
     api = Radikoapi()
     # Check whether channel is available
@@ -217,9 +190,6 @@ def main():
     if prog is None:
         api.load_program(channel, fromtime, None, area_id, now=True)
     set_mp4_meta(api, channel, area_id, rec_file)
-    fop = Fileop()
-    if args.cleanup:
-        fop.remove_recfile(outdir, DT.today())
     sys.exit(0)
 
 
