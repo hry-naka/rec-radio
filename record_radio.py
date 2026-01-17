@@ -1,12 +1,19 @@
-import json
-import sys
-import subprocess
-import os
+"""Record radio programs with configurable scheduling and cleanup.
+
+This module handles scheduled radio recording based on configuration files,
+with support for conditional overrides and automated file cleanup.
+"""
+
 import glob
+import json
+import os
 import shutil
+import subprocess
+import sys
+import time
 from datetime import datetime, timedelta
 
-# === 引数処理 ===
+# Parse command-line arguments
 if len(sys.argv) < 3:
     print("Usage: python3 record_radio.py <station> <prefix> [-c]")
     sys.exit(1)
@@ -17,11 +24,20 @@ cleanup_mode = "-c" in sys.argv
 
 
 def is_last_weekday_in_month(date: datetime) -> bool:
-    target_weekday = date.weekday()  # 0:月〜6:日
+    """Check if the given date is the last occurrence of that weekday in month.
+
+    Args:
+        date: Date to check
+
+    Returns:
+        True if date is the last occurrence of that weekday, False otherwise
+    """
+    target_weekday = date.weekday()  # 0: Monday ~ 6: Sunday
+    # Get the last day of the month
     last_day = date.replace(day=1) + timedelta(days=32)
     last_day = last_day.replace(day=1) - timedelta(days=1)
 
-    # 月内で同じ曜日の日付を列挙
+    # Collect all dates in the month with the same weekday
     weekday_dates = [
         day
         for day in range(1, last_day.day + 1)
@@ -31,18 +47,39 @@ def is_last_weekday_in_month(date: datetime) -> bool:
     return date.day == weekday_dates[-1]
 
 
-def resolve_recording_config(entry, date=None):
+def resolve_recording_config(entry: dict, date: datetime = None) -> dict:
+    """Resolve recording configuration with conditional overrides.
+
+    Applies last_weekday_override if the current date is the last occurrence
+    of that weekday in the month.
+
+    Args:
+        entry: Configuration entry from program_config
+        date: Reference date (defaults to today)
+
+    Returns:
+        Merged configuration dictionary
+    """
     date = date or datetime.today()
     config = entry.copy()
 
-    # 条件付き上書き（last_weekday_override が存在する場合のみ）
+    # Apply conditional override for last weekday of the month
     if "last_weekday_override" in entry and is_last_weekday_in_month(date):
         config.update(entry["last_weekday_override"])
 
     return config
 
 
-def build_command(config, service_name):
+def build_command(config: dict, service_name: str) -> list:
+    """Build command list for executing the service-specific recorder.
+
+    Args:
+        config: Recording configuration dictionary
+        service_name: Name of the service (e.g., 'radiko', 'nhk')
+
+    Returns:
+        List representing the command to execute
+    """
     rec_path = os.path.join(BASE_DIR, f"rec_{service_name.lower()}.py")
     cmd = [
         sys.executable,
@@ -57,46 +94,46 @@ def build_command(config, service_name):
     return cmd
 
 
-# === 現在の情報 ===
+# Get current date and time information
 now = datetime.now()
 today = now.date()
 now_time = now.replace(second=0, microsecond=0)
 
-# === 設定読み込み ===
+# Load configuration files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_DIR, "program_config.json"), "r", encoding="utf-8") as f:
     config = json.load(f)
+
 with open(os.path.join(BASE_DIR, "streaming_config.json"), "r", encoding="utf-8") as f:
     stream_config = json.load(f)
 
-# === 録音対象の判定と実行 ===
+# Process recording for matching entries
 for name, entry in config.items():
     if entry["station"] != station_input:
         continue
     if prefix_input and entry["prefix"] != prefix_input:
         continue
 
-    # sleep挿入
+    # Insert sleep delay before recording (service-specific)
     service_name = entry["service"]
     sleep_sec = stream_config.get(service_name, {}).get("sleep", 0)
     if sleep_sec > 0:
         print(f"{name}: {service_name}  {sleep_sec} sec sleep.", flush=True)
-        import time
-
         time.sleep(sleep_sec)
 
-    # 録音処理
+    # Execute recording
     entry_config = resolve_recording_config(entry)
     cmd = build_command(entry_config, service_name)
-    print(f"[{datetime.now()}]:recorgind start [{name}] [{cmd}]", flush=True)
+    print(f"[{datetime.now()}]: recording start [{name}] [{cmd}]", flush=True)
     subprocess.run(cmd)
-    print(f"[{datetime.now()}]:recording done.", flush=True)
+    print(f"[{datetime.now()}]: recording done.", flush=True)
 
-    # cleanup処理（-c オプションがある場合のみ）
+    # Cleanup phase (only if -c option is specified)
     if cleanup_mode:
-        print(f"[{datetime.now()}]:clean up start.", flush=True)
+        print(f"[{datetime.now()}]: clean up start.", flush=True)
         files = glob.glob(f'{entry_config["outputdir"]}/{entry_config["prefix"]}*')
         if len(files) > 1:
+            # Keep only the largest file
             largest = max(files, key=os.path.getsize)
             for f in files:
                 if f != largest:
@@ -105,16 +142,13 @@ for name, entry in config.items():
         elif len(files) == 1:
             shutil.move(files[0], entry_config["destdir"])
         else:
-            print(f"[{datetime.now()}]:録音ファイルが見つかりません")
-        # subprocess.run(
-        #        ["/usr/bin/onedrive", "--synchronize"],
-        #        stdout=subprocess.DEVNULL,
-        #        stderr=subprocess.DEVNULL
-        # )
+            print(f"[{datetime.now()}]: No recording files found.")
+
+        # Synchronize with OneDrive
         subprocess.run(["/usr/bin/onedrive", "--synchronize"])
-        print(f"[{datetime.now()}]:clean up done.", flush=True)
+        print(f"[{datetime.now()}]: clean up done.", flush=True)
     break
 else:
-    print(f"[{datetime.now()}]: 該当番組なし（{station_input}）")
+    print(f"[{datetime.now()}]: No matching programs found ({station_input})")
 
 print(f"[{datetime.now()}]: done.", flush=True)
