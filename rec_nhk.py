@@ -82,13 +82,14 @@ FFMPEG_EXTRA_OPTIONS = os.getenv(
 
 
 def get_args() -> argparse.Namespace:
-    """
-    Parse command-line arguments.
-    """
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Recording NHK radio.")
-    parser.add_argument("channel", metavar="channel", help=" Channel Name")
+    parser.add_argument("channel", metavar="channel", help="Channel Name")
     parser.add_argument(
-        "duration", metavar="duration", type=float, help="Duration(minutes)"
+        "duration",
+        metavar="duration",
+        type=float,
+        help="Duration(minutes)",
     )
     parser.add_argument(
         "outputdir",
@@ -98,12 +99,14 @@ def get_args() -> argparse.Namespace:
         help="Output path default:'.'",
     )
     parser.add_argument(
-        "prefix", metavar="Prefix name", nargs="?", help="Prefix name for output file."
+        "prefix",
+        metavar="Prefix name",
+        nargs="?",
+        help="Prefix name for output file.",
     )
     return parser.parse_args()
 
 
-# retrieve download url from xml
 def get_streamurl(channel: str, location: str) -> Optional[Tuple[str, str]]:
     """Retrieve HLS stream URL and channel code from NHK XML config.
 
@@ -249,12 +252,13 @@ def _get_program_info_v2(
             p_title = program.get("title")
             p_area = program.get("area", {}).get("name", "unknown")
             print(
-                f"[NHK] {timing}: id={program_id} title={p_title!r} " f"area={p_area}"
+                f"[NHK] {timing}: id={program_id} " f"title={p_title!r} area={p_area}"
             )
             return program
         else:
             print(
-                f"[NHK] current time {now.isoformat()} outside program window "
+                f"[NHK] current time {now.isoformat()} "
+                f"outside program window "
                 f"{start_dt.isoformat()}-{end_dt.isoformat()}"
             )
             return None
@@ -348,10 +352,13 @@ def _get_program_info_v3(
 
 
 def live_rec(
-    dl_url: str, duration: int, outdir: str, prefix: str, date: str
+    dl_url: str,
+    duration: int,
+    outdir: str,
+    prefix: str,
+    date: str,
 ) -> Optional[str]:
     """Perform live recording using ffmpeg with timeout.
-
 
     Args:
         dl_url: HLS stream URL
@@ -371,7 +378,7 @@ def live_rec(
         timeout = shutil.which("gtimeout")
 
     if ffmpeg is None or timeout is None:
-        print("Error: ffmpeg and timeout must be installed and in PATH")
+        print("Error: ffmpeg and timeout must be installed and " "in PATH")
         print("  Install with: brew install ffmpeg coreutils")
         return None
 
@@ -385,9 +392,11 @@ def live_rec(
         f"-reconnect_delay_max {FFMPEG_RECONNECT_DELAY_MAX} "
         f"-rw_timeout {FFMPEG_RW_TIMEOUT} "
         "-user_agent "
-        '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" '
+        '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36" '
         f"-i {dl_url} -t {duration + 5} "
-        f"-vn -c:a {FFMPEG_AUDIO_CODEC} -b:a {FFMPEG_AUDIO_BITRATE} "
+        f"-vn -c:a {FFMPEG_AUDIO_CODEC} "
+        f"-b:a {FFMPEG_AUDIO_BITRATE} "
         f"-ar {FFMPEG_AUDIO_SAMPLE_RATE} "
         f"{output_path}"
     )
@@ -446,7 +455,9 @@ def get_largest_logourl(program: Dict[str, Any]) -> Optional[str]:
     if logo and isinstance(logo, dict):
         url = logo.get("url")
         if url:
-            return f"https:{url}" if not url.startswith("https") else url
+            if not url.startswith("https"):
+                return f"https:{url}"
+            return url
 
     return None
 
