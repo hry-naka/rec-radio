@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Record radio programs with configurable scheduling and cleanup.
 
 This module handles scheduled radio recording based on configuration files,
