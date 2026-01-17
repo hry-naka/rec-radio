@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-# coding: utf-8
+#!/usr/bin/env python3
 """rec_nhk.py - NHK radio recording module.
 
 This module provides functionalities for recording NHK radio.
