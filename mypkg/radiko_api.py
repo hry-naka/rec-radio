@@ -1,553 +1,475 @@
-#!/usr/bin/python3
-# coding: utf-8
+#!/usr/bin/env python3
+"""Radiko API client module for radio program management.
+
+This module provides a stateless API client for interacting with the Radiko
+radio streaming service. It handles authentication, program retrieval, and
+station information queries.
 """
-This module provides a class for performing radiko api.
-"""
-from datetime import datetime as DT
-from datetime import timedelta as TD
-import xml.etree.ElementTree as ET
-import random
+import base64
 import hashlib
 import json
-import base64
+import random
+import xml.etree.ElementTree as ET
+from datetime import datetime as DT
+from datetime import timedelta as TD
+from typing import List, Optional, Tuple
+
 import requests
 
+from .program import Program
 
-class Radikoapi:
+
+class RadikoAPIClient:
+    """Stateless client for Radiko API interactions.
+
+    This class provides methods for authentication, station information
+    retrieval, and program data fetching from the Radiko API.
     """
-    A class for interacting with the Radiko API.
-    """
+
+    # API endpoints
+    SEARCH_URL = "https://radiko.jp/v3/api/program/search"
+    STATION_LIST_URL = "https://radiko.jp/v3/station/list/{}.xml"
+    NOW_URL = "https://radiko.jp/v3/program/now/{}.xml"
+    WEEKLY_URL = "https://radiko.jp/v3/program/station/weekly/{}.xml"
+    TODAY_URL = "http://radiko.jp/v3/program/station/date/{}/{}.xml"
+    AUTH_KEY = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
+    AUTH1_URL = "https://radiko.jp/v2/api/auth1"
+    AUTH2_URL = "https://radiko.jp/v2/api/auth2"
+    STREAM_URL = "https://f-radiko.smartstream.ne.jp/{}"
 
     def __init__(self):
-        self.title = []
-        self.url = []
-        self.desc = []
-        self.info = []
-        self.pfm = []
-        self.img = []
-        self.duration = []
-        self.search_url = "https://radiko.jp/v3/api/program/search"
-        self.stationlist_url = "https://radiko.jp/v3/station/list/{}.xml"
-        self.now_url = "https://radiko.jp/v3/program/now/{}.xml"
-        self.weekly_url = "https://radiko.jp/v3/program/station/weekly/{}.xml"
-        #self.today_url = 'http://radiko.jp/v3/program/today/{}.xml'
-        self.today_url = "http://radiko.jp/v3/program/station/date/{}/{}.xml"
-        # self.today_url = today_url.format( station_id )
-        # self.tomorrow_url = 'http://radiko.jp/v3/program/tomorrow/{}.xml'
-        # self.tomorrow_url = tomorrow_url.format( station_id )
+        """Initialize API client."""
+        pass
 
-    def get_stationlist(self, area_id="JP13"):
-        """
-        Get the list of stations for the specified area.
+    def get_station_list(self, area_id: str = "JP13") -> Optional[ET.Element]:
+        """Get the list of stations for the specified area.
 
         Args:
-            area_id (str): The ID of the area. Defaults to "JP13".
+            area_id: The ID of the area. Defaults to "JP13".
 
         Returns:
-            xml.etree.ElementTree.Element: The XML element representing the station list.
+            XML element representing the station list, or None if failed.
         """
-        stationlist_url = self.stationlist_url.format(area_id)
-        resp = requests.get(stationlist_url, timeout=(20, 5))
-        if resp.status_code == 200:
-            stationlist = ET.fromstring(resp.content.decode("utf-8"))
-            return stationlist
-        else:
-            print(resp.status_code)
+        station_list_url = self.STATION_LIST_URL.format(area_id)
+        try:
+            resp = requests.get(station_list_url, timeout=(20, 5))
+            if resp.status_code == 200:
+                return ET.fromstring(resp.content.decode("utf-8"))
+            else:
+                print(f"Error fetching station list: {resp.status_code}")
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching station list: {e}")
             return None
 
-    def is_avail(self, station, area_id="JP13"):
-        """
-        Check if the specified station is available in the given area.
+    def is_station_available(self, station: str, area_id: str = "JP13") -> bool:
+        """Check if the specified station is available in the given area.
 
         Args:
-            station (str): The ID of the station.
-            area_id (str): The ID of the area. Defaults to "JP13".
+            station: Station ID
+            area_id: Area ID. Defaults to "JP13".
 
         Returns:
-            bool: True if the station is available, False otherwise.
+            True if the station is available, False otherwise.
         """
-        stationlist = self.get_stationlist(area_id)
-        for stationid in stationlist.iter("id"):
-            if stationid.text == station:
+        station_list = self.get_station_list(area_id)
+        if station_list is None:
+            return False
+        for station_elem in station_list.iter("id"):
+            if station_elem.text == station:
                 return True
         return False
 
-    def get_channel(self, area_id="JP13"):
-        """
-        Get the list of channel IDs and names for the specified area.
+    def get_channel_list(self, area_id: str = "JP13") -> Tuple[List[str], List[str]]:
+        """Get the list of channel IDs and names for the specified area.
 
         Args:
-            area_id (str): The ID of the area. Defaults to "JP13".
+            area_id: Area ID. Defaults to "JP13".
 
         Returns:
-            tuple: Two lists containing the channel IDs and names.
+            Tuple of (channel IDs list, channel names list).
         """
-        stationlist = self.get_stationlist(area_id)
-        idlist = []
-        namelist = []
-        for stationid in stationlist.iter("id"):
-            idlist.append(stationid.text)
-        for name in stationlist.iter("name"):
-            namelist.append(name.text)
-        return idlist, namelist
+        station_list = self.get_station_list(area_id)
+        id_list = []
+        name_list = []
+        if station_list is not None:
+            for station_id in station_list.iter("id"):
+                id_list.append(station_id.text)
+            for name in station_list.iter("name"):
+                name_list.append(name.text)
+        return id_list, name_list
 
-    def set_member(self, prog, xpath):
-        """
-        Set the program information by xpath.
+    def _extract_program_from_xml(
+        self,
+        root: ET.Element,
+        station: str,
+        ft: str,
+    ) -> Optional[Program]:
+        """Extract program information from XML element.
 
         Args:
-            prog (xml): xml data of weekly or now program.
-            xpath(str): xpath string.
+            root: XML root element
+            station: Station ID
+            ft: Program start time (ft attribute)
 
         Returns:
-            None
+            Program object or None if not found.
         """
-        for elm in prog.findall(xpath):
-            self.duration.append(elm.attrib["dur"])
-        xpath = xpath + '/{}'
-        for elm in prog.findall(xpath.format("title")):
-            self.title.append(elm.text)
-        for elm in prog.findall(xpath.format("url")):
-            self.url.append(elm.text)
-        for elm in prog.findall(xpath.format("desc")):
-            self.desc.append(elm.text)
-        for elm in prog.findall(xpath.format("info")):
-            self.info.append(elm.text)
-        for elm in prog.findall(xpath.format("pfm")):
-            self.pfm.append(elm.text)
-        for elm in prog.findall(xpath.format("img")):
-            self.img.append(elm.text)
-
-#    def load_now(self, station, fromtime, area_id="JP13"):
-#        """
-#        Load the current program information for the specified station.
-#
-#        Args:
-#            station (str): The ID of the station.
-#            fromtime(str): The start time of the range in the format "YYYYMMDDHHMMSS".
-#            area_id (str): The ID of the area. Defaults to "JP13".
-#
-#        Returns:
-#            None if not found or fail
-#            True if found
-#        """
-#        now_url = self.now_url.format(area_id)
-#        resp = requests.get(now_url, timeout=(20, 5))
-#        if resp.status_code == 200:
-#            #print( "======Response=====" )
-#            #print( resp.content.decode("utf-8") )
-#            now = ET.fromstring(resp.content.decode("utf-8"))
-#            xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{fromtime}"]'
-#            if now.find(xpath) is None:
-#                print( f"Fromtime={fromtime} not found. overwriten." )
-#                xpath = f'.//station[@id="{station}"]//progs/prog'
-#                if now.find(xpath) is None:
-#                    return None
-#            self.set_member(now, xpath)
-#            return True
-#        else:
-#            print(resp.status_code)
-#            return None
-
-    def load_today(self, station, current, area_id="JP13"):
-        """
-        今日の番組表を取得して current に一致する番組を set_member する。
-        station: 局ID (例: "INT")
-        current: YYYYMMDDHHMMSS 文字列（録音開始時刻など）
-        """
-        url = self.today_url.format(current[:8],station)
-        print( url )
-        resp = requests.get(url, timeout=(20, 5))
-        if resp.status_code != 200:
-            print(f"Error: {resp.status_code}")
+        prog_elem = root.find(f'.//station[@id="{station}"]//progs/prog[@ft="{ft}"]')
+        if prog_elem is None:
             return None
 
-        root = ET.fromstring(resp.content.decode("utf-8"))
-        progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
-        if not progs:
-            print("No programs found for today.")
-            return None
+        title_elem = prog_elem.find("title")
+        pfm_elem = prog_elem.find("pfm")
+        desc_elem = prog_elem.find("desc")
+        info_elem = prog_elem.find("info")
+        img_elem = prog_elem.find("img")
+        url_elem = prog_elem.find("url")
 
-        # ft/to の範囲に current が入る番組を探す
-        for prog in progs:
-            ft = prog.attrib.get("ft")
-            to = prog.attrib.get("to")
-            if ft and to and ft <= current < to:
-                title_elem = prog.find("title")
-                pfm_elem = prog.find("pfm")
-                info_elem = prog.find("info")
+        title = title_elem.text if title_elem is not None else ""
+        performer = pfm_elem.text if pfm_elem is not None else None
+        description = desc_elem.text if desc_elem is not None else None
+        info = info_elem.text if info_elem is not None else None
+        image_url = img_elem.text if img_elem is not None else None
+        url = url_elem.text if url_elem is not None else None
 
-                title = title_elem.text if title_elem is not None else ""
-                pfm = pfm_elem.text if pfm_elem is not None else ""
-                info = info_elem.text if info_elem is not None else ""
+        ft_attr = prog_elem.attrib.get("ft", "")
+        to_attr = prog_elem.attrib.get("to", "")
+        dur = int(prog_elem.attrib.get("dur", 0))
 
-                # ログ出力
-                print("=== Program Found (today) ===")
-                print(f"Current time: {current}")
-                print(f"Station: {station}")
-                print(f"From: {ft}")
-                print(f"To:   {to}")
-                print(f"Title: {title}")
-                print(f"Pfm:   {pfm}")
-                print("=============================")
+        return Program(
+            title=title,
+            station=station,
+            area="JP13",  # Default, could be parameterized
+            start_time=ft_attr,
+            end_time=to_attr,
+            duration=dur,
+            performer=performer,
+            description=description,
+            info=info,
+            image_url=image_url,
+            url=url,
+        )
 
-                # set_member に渡す
-                xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{ft}"]'
-                self.set_member(root, xpath)
-                return True
-
-        print("No program found in today's schedule for current time.")
-        return None
-
-
-    def load_now(self, station, fromtime, area_id="JP13"):
-        now_url = self.now_url.format(area_id)
-        resp = requests.get(now_url, timeout=(20, 5))
-        if resp.status_code != 200:
-            print(resp.status_code)
-            return None
-
-        now = ET.fromstring(resp.content.decode("utf-8"))
-
-        # 現在時刻を JST の文字列と比較できるように整形
-        # current = DT.now().strftime("%Y%m%d%H%M%S")
-        print( DT.now().strftime("%Y%m%d%H%M%S") )
-        current = fromtime
-
-        # station の prog を全部取得
-        progs = now.findall(f'.//station[@id="{station}"]//progs/prog')
-        if not progs:
-            return None
-
-        # ft, to の範囲に現在時刻が入っているものを探す
-        for prog in progs:
-            ft = prog.attrib.get("ft")  # 例: "20251117090000"
-            to = prog.attrib.get("to")  # 例: "20251117100000"
-            print(f"From: {ft}")
-            print(f"To:   {to}")
-            print(f"Compare: {ft} <= {current} < {to} ? {ft <= current < to}")
-            if ft and to and ft <= current < to:
-               title_elem = prog.find("title")
-               pfm_elem = prog.find("pfm")
-               info_elem = prog.find("info")
-
-               title = title_elem.text if title_elem is not None else ""
-               pfm = pfm_elem.text if pfm_elem is not None else ""
-               info = info_elem.text if info_elem is not None else ""
-
-               # ★ログ出力（主要データ）
-               print("=== Current Program Found ===")
-               print(f"Current time: {current}")
-               print(f"Station: {station}")
-               print(f"From: {ft}")
-               print(f"To:   {to}")
-               print(f"Title: {title}")
-               print(f"Pfm:   {pfm}")
-               print("=============================")
-               # 範囲内にある番組を採用
-               xpath = f'.//station[@id="{station}"]//progs/prog[@ft="{ft}"]'
-               self.set_member(now, xpath)
-               return True
-
-        print("No program found in current time range.")
-        return None
-
-    def load_weekly(self, station, fromtime, totime):
-        """
-        Load the weekly program information for the specified station and time range.
+    def fetch_today_program(
+        self,
+        station: str,
+        current_time: str,
+        area_id: str = "JP13",
+    ) -> Optional[Program]:
+        """Fetch today's program schedule and find the program at current time.
 
         Args:
-            station (str): The ID of the station.
-            fromtime (str): The start time of the range in the format "YYYYMMDDHHMMSS".
-            totime (str): The end time of the range in the format "YYYYMMDDHHMMSS".
+            station: Station ID
+            current_time: Current time in YYYYMMDDHHMMSS format
+            area_id: Area ID. Defaults to "JP13".
 
         Returns:
-            None if not found or fail
-            True if found
+            Program object if found, None otherwise.
         """
-        weekly_url = self.weekly_url.format(station)
-        resp = requests.get(weekly_url, timeout=(20, 5))
-        if resp.status_code == 200:
-            weekly = ET.fromstring(resp.content.decode("utf-8"))
-            if totime is None:
-                xpath = f'.//prog[@ft="{fromtime}"]'
-                if weekly.find(xpath) is None:
-                    return None
-                xpath = xpath.format(fromtime)
-                self.set_member(weekly, xpath)
+        url = self.TODAY_URL.format(current_time[:8], station)
+        print(f"Fetching: {url}")
+        try:
+            resp = requests.get(url, timeout=(20, 5))
+            if resp.status_code != 200:
+                print(f"Error: {resp.status_code}")
+                return None
+
+            root = ET.fromstring(resp.content.decode("utf-8"))
+            progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
+
+            if not progs:
+                print("No programs found for today.")
+                return None
+
+            # Find program containing current_time
+            for prog in progs:
+                ft = prog.attrib.get("ft")
+                to = prog.attrib.get("to")
+                if ft and to and ft <= current_time < to:
+                    print(
+                        f"Current program found: {ft}-{to} "
+                        f"(current: {current_time})"
+                    )
+                    return self._extract_program_from_xml(root, station, ft)
+
+            print(f"No program found for current time: {current_time}")
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching program: {e}")
+            return None
+
+    def fetch_now_program(
+        self,
+        station: str,
+        current_time: str,
+        area_id: str = "JP13",
+    ) -> Optional[Program]:
+        """Fetch now-on-air program information.
+
+        Args:
+            station: Station ID
+            current_time: Current time in YYYYMMDDHHMMSS format
+            area_id: Area ID. Defaults to "JP13".
+
+        Returns:
+            Program object if found, None otherwise.
+        """
+        try:
+            resp = requests.get(self.NOW_URL.format(area_id), timeout=(20, 5))
+            if resp.status_code != 200:
+                print(f"Error: {resp.status_code}")
+                return None
+
+            root = ET.fromstring(resp.content.decode("utf-8"))
+            progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
+
+            if not progs:
+                print("No programs found.")
+                return None
+
+            # Find program containing current_time
+            for prog in progs:
+                ft = prog.attrib.get("ft")
+                to = prog.attrib.get("to")
+                if ft and to and ft <= current_time < to:
+                    print(f"Current program: {ft}-{to} " f"(current: {current_time})")
+                    return self._extract_program_from_xml(root, station, ft)
+
+            print(f"No program found for current time: {current_time}")
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching program: {e}")
+            return None
+
+    def fetch_weekly_program(
+        self,
+        station: str,
+        from_time: str,
+        to_time: Optional[str] = None,
+    ) -> Optional[Program]:
+        """Fetch weekly program schedule for specified time range.
+
+        Args:
+            station: Station ID
+            from_time: Start time in YYYYMMDDHHMMSS format
+            to_time: End time in YYYYMMDDHHMMSS format (optional)
+
+        Returns:
+            Program object if found, None otherwise.
+        """
+        weekly_url = self.WEEKLY_URL.format(station)
+        try:
+            resp = requests.get(weekly_url, timeout=(20, 5))
+            if resp.status_code != 200:
+                print(f"Error: {resp.status_code}")
+                return None
+
+            root = ET.fromstring(resp.content.decode("utf-8"))
+
+            # Find program by time range
+            if to_time is None:
+                prog_elem = root.find(f'.//prog[@ft="{from_time}"]')
             else:
-                xpath = f'.//prog[@ft="{fromtime}"][@to="{totime}"]'
-                self.set_member(weekly, xpath)
-            return True
-        else:
-            print(resp.status_code)
+                prog_elem = root.find(f'.//prog[@ft="{from_time}"][@to="{to_time}"]')
+
+            if prog_elem is None:
+                return None
+
+            return self._extract_program_from_xml(root, station, from_time)
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching program: {e}")
             return None
 
-    def load_program(self, station, fromtime, totime, area_id="JP13", now=False):
-        """
-        Load the program information for the specified station and time range.
+    def fetch_program(
+        self,
+        station: str,
+        from_time: str,
+        to_time: Optional[str] = None,
+        area_id: str = "JP13",
+        now: bool = False,
+    ) -> Optional[Program]:
+        """Fetch program information.
 
         Args:
-            station (str): The ID of the station.
-            fromtime (str): The start time of the range in the format "YYYYMMDDHHMMSS".
-            totime (str): The end time of the range in the format "YYYYMMDDHHMMSS".
-            area_id (str): The ID of the area. Defaults to "JP13".
-            now (bool): Whether to load the current program. Defaults to False.
+            station: Station ID
+            from_time: Start time in YYYYMMDDHHMMSS format
+            to_time: End time in YYYYMMDDHHMMSS format (optional)
+            area_id: Area ID. Defaults to "JP13".
+            now: Whether to fetch current program. Defaults to False.
 
         Returns:
-            None
+            Program object if found, None otherwise.
         """
         if now:
-            return self.load_today(station, fromtime, area_id)
-            #result = self.load_now(station, fromtime, area_id)
-            #if result is None:
-            #    return self.load_today(station, fromtime, area_id)
-            #return result
+            return self.fetch_today_program(station, from_time, area_id)
         else:
-            return self.load_weekly(station, fromtime, totime)
+            return self.fetch_weekly_program(station, from_time, to_time)
 
-    def get_title(self, station, area_id, next_prog=False):
-        """
-        Get the title of the current or next program for the specified station.
+    def get_stream_url(self, channel: str, auth_token: str) -> Optional[str]:
+        """Retrieve M3U8 stream URL from Radiko server.
 
         Args:
-            station (str): The ID of the station.
-            area_id (str): The ID of the area.
-            next_prog (bool): Whether to get the next program. Defaults to False.
+            channel: Channel ID
+            auth_token: Authentication token
 
         Returns:
-            str: The title of the program.
+            Stream URL string, or None if failed.
         """
-        if next_prog is True:
-            index = 1
-        else:
-            index = 0
-        if not self.title:
-            self.load_now(station, area_id)
-        return self.title[index]
+        import re
 
-    def get_url(self, station, area_id, next_prog=False):
-        """
-        Get the URL of the current or next program for the specified station.
+        stream_url = self.STREAM_URL.format(channel)
+        stream_url += "/_definst_/simul-stream.stream/playlist.m3u8"
+        headers = {
+            "X-Radiko-AuthToken": auth_token,
+        }
+        try:
+            resp = requests.get(stream_url, headers=headers, timeout=(20, 5))
+            if resp.status_code == 200:
+                # Extract M3U8 URL from response body
+                lines = re.findall("^https?://.+m3u8$", resp.text, flags=re.MULTILINE)
+                if lines:
+                    return lines[0]
+                print("Error: No M3U8 URL found in response.")
+                return None
+            else:
+                print(
+                    f"Error: Failed to get stream URL " f"(status {resp.status_code})"
+                )
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching stream URL: {e}")
+            return None
 
-        Args:
-            station (str): The ID of the station.
-            area_id (str): The ID of the area.
-            next_prog (bool): Whether to get the next program. Defaults to False.
+    @staticmethod
+    def _generate_uid() -> str:
+        """Generate a unique ID for API requests.
 
         Returns:
-            str: The URL of the program.
-        """
-        if next_prog is True:
-            index = 1
-        else:
-            index = 0
-        if not self.url:
-            self.load_now(station, area_id)
-        return self.desc[index]
-
-    def get_desc(self, station, area_id, next_prog=False):
-        """
-        Get the description of the current or next program for the specified station.
-
-        Args:
-            station (str): The ID of the station.
-            area_id (str): The ID of the area.
-            next_prog (bool): Whether to get the next program. Defaults to False.
-
-        Returns:
-            str: The description of the program.
-        """
-        if next_prog is True:
-            index = 1
-        else:
-            index = 0
-        if not self.desc:
-            self.load_now(station, area_id)
-        return self.desc[index]
-
-    def get_info(self, station, area_id, next_prog=False):
-        """
-        Get the information of the current or next program for the specified station.
-
-        Args:
-            station (str): The ID of the station.
-            area_id (str): The ID of the area.
-            next_prog (bool): Whether to get the next program. Defaults to False.
-
-        Returns:
-            str: The information of the program.
-        """
-        if next_prog is True:
-            index = 1
-        else:
-            index = 0
-        if not self.info:
-            self.load_now(station, area_id)
-        return self.info[index]
-
-    def get_pfm(self, station, area_id, next_prog=False):
-        """
-        Get the performer of the current or next program for the specified station.
-
-        Args:
-            station (str): The ID of the station.
-            area_id (str): The ID of the area.
-            next_prog (bool): Whether to get the next program. Defaults to False.
-
-        Returns:
-            str: The performer of the program.
-        """
-        if next_prog is True:
-            index = 1
-        else:
-            index = 0
-        if not self.pfm:
-            self.load_now(station, area_id)
-        return self.pfm[index]
-
-    def get_img(self, station, area_id, next_prog=False):
-        """
-        Get the image URL of the current or next program for the specified station.
-
-        Args:
-            station (str): The ID of the station.
-            area_id (str): The ID of the area.
-            next_prog (bool): Whether to get the next program. Defaults to False.
-
-        Returns:
-            str: The image URL of the program.
-        """
-        if next_prog is True:
-            index = 1
-        else:
-            index = 0
-        if not self.img:
-            self.load_now(station, area_id)
-        return self.img[index]
-
-    def generate_uid(self):
-        """
-        Generate a unique ID for the API request.
-
-        Returns:
-            str: The generated unique ID.
+            Unique ID string.
         """
         rnd = random.random() * 1000000000
         msec = TD.total_seconds(DT.now() - DT(1970, 1, 1)) * 1000
         return hashlib.md5(str(rnd + msec).encode("utf-8")).hexdigest()
 
-    def search(self, keyword="", time="past", area_id="JP13"):
-        """
-        Search for programs matching the specified keyword.
+    def search_programs(
+        self,
+        keyword: str = "",
+        time_filter: str = "past",
+        area_id: str = "JP13",
+    ) -> dict:
+        """Search for programs matching the specified keyword.
 
         Args:
-            keyword (str): The keyword to search for.
-            area_id (str): The ID of the area. Defaults to "JP13".
-            count (int): The number of programs to return. Defaults to 5.
-            page (int): The page number of the search results. Defaults to 0.
+            keyword: Search keyword
+            time_filter: Time filter (past, now, future)
+            area_id: Area ID. Defaults to "JP13".
 
         Returns:
-            list: A list of dictionaries containing the program information.
+            Search results as dictionary.
         """
         params = {
             "key": keyword,
-            "filter": time,
+            "filter": time_filter,
             "start_day": "",
             "end_day": "",
             "area_id": area_id,
             "region_id": "",
             "cul_area_id": area_id,
             "page_idx": "0",
-            "uid": self.generate_uid(),
+            "uid": self._generate_uid(),
             "row_limit": "12",
             "app_id": "pc",
             "action_id": "0",
         }
-        response = requests.get(
-            "http://radiko.jp/v3/api/program/search", params=params, timeout=(20, 5)
-        )
-        return json.loads(response.content)
+        try:
+            response = requests.get(self.SEARCH_URL, params=params, timeout=(20, 5))
+            return json.loads(response.content)
+        except requests.exceptions.RequestException as e:
+            print(f"Error searching programs: {e}")
+            return {}
 
-    def authorize(self):
-        """
-        Performs authentication to obtain a token and key offset for Radiko API access.
+    def authorize(self) -> Optional[Tuple[str, str]]:
+        """Perform Radiko API authentication.
+
+        Returns two-step OAuth-like authentication to obtain token and area ID.
 
         Returns:
-            tuple: A tuple containing the authentication token and key offset.
-                If authentication fails, None is returned.
+            Tuple of (auth_token, area_id) or None if authentication failed.
         """
-        authkey = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
+        # Step 1: Get initial token and key offset
         headers = {
             "x-radiko-app": "pc_html5",
             "x-radiko-app-version": "0.0.1",
             "x-radiko-device": "pc",
             "x-radiko-user": "dummy_user",
         }
-        url = "https://radiko.jp/v2/api/auth1"
-        res = requests.get(url, headers=headers, timeout=(20, 5))
-        if res.status_code == 200:
+        try:
+            res = requests.get(self.AUTH1_URL, headers=headers, timeout=(20, 5))
+            if res.status_code != 200:
+                print(f"Authorization error (phase 1): " f"{res.status_code}")
+                return None
+
             token = res.headers["x-radiko-authtoken"]
             offset = int(res.headers["x-radiko-keyoffset"])
             length = int(res.headers["x-radiko-keylength"])
+
+            # Step 2: Compute partial key and request second token
             partial_key = base64.b64encode(
-                authkey[offset: offset + length].encode("ascii")
+                self.AUTH_KEY[offset : offset + length].encode("ascii")
             ).decode("utf-8")
+
             headers = {
                 "x-radiko-authtoken": token,
                 "x-radiko-device": "pc",
                 "x-radiko-partialkey": partial_key,
                 "x-radiko-user": "dummy_user",
             }
-            url = "https://radiko.jp/v2/api/auth2"
-            res = requests.get(url, headers=headers, timeout=(20, 5))
-            if res.status_code == 200:
-                return token, res.text.split(",")[0]
-            else:
-                print(f"authorize errr at phase#2 : {res.status_code}")
+            res = requests.get(self.AUTH2_URL, headers=headers, timeout=(20, 5))
+            if res.status_code != 200:
+                print(f"Authorization error (phase 2): " f"{res.status_code}")
                 return None
-        else:
-            print(f"authorize errr at phase#1 : {res.status_code}")
+
+            area_id = res.text.split(",")[0]
+            return token, area_id
+        except requests.exceptions.RequestException as e:
+            print(f"Authorization error: {e}")
             return None
 
-    def dump(self):
-        """ dump class member var. for debug """
-        print("Title: ", *self.title, sep="\n")
-        print("Url: ", *self.url, sep="\n")
-        print("Desc: ", *self.desc, sep="\n")
-        print("Info: ", *self.info, sep="\n")
-        print("Pfm: ", *self.pfm, sep="\n")
-        print("Img: ", *self.img, sep="\n")
-        print("Duration: ", *self.duration, sep="\n")
+    def dump(self) -> None:
+        """Dump API statistics (for debugging)."""
+        print("Note: RadikoAPIClient is stateless.")
 
 
 if __name__ == "__main__":
-    api = Radikoapi()
+    """Simple operational check for RadikoAPIClient."""
+    client = RadikoAPIClient()
 
-    print(api.is_avail("TBS"))
-    print(api.is_avail("TXS"))
+    # Authorize
+    print("Authorizing...")
+    auth_result = client.authorize()
+    if auth_result is None:
+        print("Authorization failed")
+        exit(1)
 
-    print("--------------------")
-    ids, names = api.get_channel()
-    for i, station_id in enumerate(ids):
-        print(f"{i} station : {station_id}\t\tname : {names[i]}")
-    print("--------------------")
+    auth_token, area_id = auth_result
+    print(f"Authorization successful. Area ID: {area_id}")
+    print()
 
-    # result = api.search('黒田 卓也')
-    result = api.search("生島ヒロシ")
-    for d in result["data"]:
-        print(
-            d["title"],
-            d["station_id"],
-            re.sub("[-: ]", "", d["start_time"]),
-            re.sub("[-: ]", "", d["end_time"]),
-        )
-    # print( json.dumps( result, indent=4 ) )
+    # Fetch and display current program on TBS
+    print("Fetching current program on TBS...")
+    current_time = DT.now().strftime("%Y%m%d%H%M00")
+    program = client.fetch_today_program("TBS", current_time, area_id)
 
-    api.load_program("TBS", "20230529050000", "20230529063000")
-    api.dump()
+    if program:
+        print(f"Title:       {program.title}")
+        print(f"Station:     {program.station}")
+        print(f"Start time:  {program.start_time}")
+        print(f"End time:    {program.end_time}")
+        if program.performer:
+            print(f"Performer:   {program.performer}")
+        if program.description:
+            print(f"Description: {program.description}")
+    else:
+        print("No program found")
 
-    fromt = DT.now().strftime("%Y%m%d%H%M00")
-    # api.load_program("TBS", fromt, None, now=True)
-    api.load_program("TBS", "20230605190000", None, now=True)
-    api.dump()
