@@ -1,34 +1,41 @@
-#!/usr/bin/python3
-# coding: utf-8
-"""
-rec_radiko.py
+#!/usr/bin/env python3
+"""Radiko live radio recording module.
 
-This module provides functionalities for recording Radiko.
+This module provides functionalities for recording live radio from Radiko,
+including authentication, stream retrieval, and metadata management.
 
 Author: Hiroyuki NAKAMURA (https://github.com/hry-naka)
 Date: May 25, 2023
 """
 import argparse
-import sys
-import shutil
+import re
 import shlex
+import shutil
 import subprocess
+import sys
 import time
 from datetime import datetime as DT
-import re
+from typing import Optional, Tuple
+
 import requests
 from mutagen.mp4 import MP4, MP4Cover
+
 from mypkg.radiko_api import Radikoapi
 
 
-def get_args():
-    """
-    Get command-line arguments.
+def get_args() -> argparse.Namespace:
+    """Parse command-line arguments for Radiko recording.
+
+    Returns:
+        Parsed command-line arguments namespace
     """
     parser = argparse.ArgumentParser(description="Recording Radiko.")
-    parser.add_argument("channel", metavar="channel", help=" Channel Name")
+    parser.add_argument("channel", metavar="channel", help="Channel Name")
     parser.add_argument(
-        "duration", metavar="duration", type=float, help="Duration(minutes)"
+        "duration",
+        metavar="duration",
+        type=float,
+        help="Duration (minutes)",
     )
     parser.add_argument(
         "outputdir",
@@ -38,16 +45,28 @@ def get_args():
         help="Output path default:'.'",
     )
     parser.add_argument(
-        "prefix", metavar="Prefix name", nargs="?", help="Prefix name for output file."
+        "prefix",
+        metavar="Prefix name",
+        nargs="?",
+        help="Prefix name for output file.",
     )
     return parser.parse_args()
 
 
-def get_streamurl(channel, authtoken):
+def get_streamurl(channel: str, authtoken: str) -> str:
+    """Retrieve M3U8 stream URL from Radiko API.
+
+    Args:
+        channel: Channel ID
+        authtoken: Authentication token from Radiko API
+
+    Returns:
+        M3U8 stream URL
+
+    Raises:
+        SystemExit: If stream URL cannot be retrieved
     """
-    Retrieve download URL from XML.
-    """
-    url = f"https://f-radiko.smartstream.ne.jp/{ channel }"
+    url = f"https://f-radiko.smartstream.ne.jp/{channel}"
     url += "/_definst_/simul-stream.stream/playlist.m3u8"
     headers = {
         "X-Radiko-AuthToken": authtoken,
@@ -56,78 +75,116 @@ def get_streamurl(channel, authtoken):
     res.encoding = "utf-8"
     if res.status_code == 200:
         body = res.text
+        # Extract M3U8 URL from response body
         lines = re.findall("^https?://.+m3u8$", body, flags=re.MULTILINE)
         if len(lines) > 0:
             return lines[0]
-        print("Radiko: no m3u8 in the responce.")
+        print("Radiko: no m3u8 in the response.")
         sys.exit(1)
     else:
         print(res.text)
-        print(f"adiko: error {res.status_code} encounterd.")
+        print(f"Radiko: error {res.status_code} encountered.")
         sys.exit(1)
 
 
-def live_rec(url_parts, auth_token, prefix, duration, date, outdir):
-    """
-    Perform live recording.
+def live_rec(
+    url_parts: str,
+    auth_token: str,
+    prefix: str,
+    duration: int,
+    date: str,
+    outdir: str,
+) -> str:
+    """Perform live recording from Radiko stream using ffmpeg.
+
+    Args:
+        url_parts: M3U8 stream URL
+        auth_token: Radiko authentication token
+        prefix: Output file prefix
+        duration: Recording duration in seconds
+        date: Date string for filename
+        outdir: Output directory path
+
+    Returns:
+        Path to recorded file
+
+    Raises:
+        SystemExit: If ffmpeg is not available or recording fails
     """
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is None:
-        print("This tool need ffmpeg to be installed to executable path")
-        print("Soryy, bye.")
+        print("Error: ffmpeg must be installed and available in PATH")
         sys.exit(1)
+
+    # Build ffmpeg command with reconnection and auth headers
     cmd = f"{ffmpeg} -loglevel warning -y "
-    # cmd += f"{ffmpeg} -loglevel fatal -y "
-    # cmd += f"{ffmpeg} -loglevel info -y "
     cmd += "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
     cmd += "-reconnect_delay_max 600 "
-    cmd += '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36" '
-    cmd += f'-headers "X-Radiko-AuthToken: {auth_token}\r\n" -i "{url_parts}" '
-    cmd += f"-t {duration+5} "
+    cmd += (
+        '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36" '
+    )
+    cmd += f'-headers "X-Radiko-AuthToken: {auth_token}\\r\\n" ' f'-i "{url_parts}" '
+    cmd += f"-t {duration + 5} "
     cmd += f"-acodec copy {outdir}/{prefix}_{date}.mp4"
     print(cmd, flush=True)
 
-    # Exec ffmpeg
+    # Execute ffmpeg command
     try:
         result = subprocess.run(
             shlex.split(cmd),
-            capture_output=True,  # capture stdout/stderr
-            text=True,  # automatic decode
-            check=True,  # if returncode != 0 throw exception
+            capture_output=True,
+            text=True,
+            check=True,
         )
-        # log output when success
+        # Log output on success
         print(result.stdout, flush=True)
         print(result.stderr, flush=True)
         return f"{outdir}/{prefix}_{date}.mp4"
     except subprocess.CalledProcessError as e:
-        # log output when not success
-        print(f"ffmpeg abnormal end. returncode={e.returncode}", flush=True)
+        # Log output on failure
+        print(
+            f"ffmpeg abnormal end. returncode={e.returncode}",
+            flush=True,
+        )
         print(e.stdout, flush=True)
         print(e.stderr, flush=True)
         sys.exit(1)
 
 
-def set_mp4_meta(program, channel, area_id, rec_file, track_num=None):
-    """
-    Set metadata tags in the MP4 file.
+def set_mp4_meta(
+    program,
+    channel: str,
+    area_id: str,
+    rec_file: str,
+    track_num: Optional[int] = None,
+) -> None:
+    """Set metadata tags in the MP4 file for Radiko recordings.
+
+    Args:
+        program: Program info object from Radiko API
+        channel: Channel ID
+        area_id: Area ID for the broadcast
+        rec_file: Path to recorded MP4 file
+        track_num: Optional track number
     """
     audio = MP4(rec_file)
 
-    # タイトル
+    # Set title from program info
     title = program.get_title(channel, area_id)
     if title:
         audio.tags["\xa9nam"] = title
 
-    # アルバム（局名）
+    # Set album (station name)
     audio.tags["\xa9alb"] = channel
 
-    # アーティスト（パーソナリティ）
+    # Set artist (personality/host names)
     pfm = program.get_pfm(channel, area_id)
     if pfm:
         audio.tags["\xa9ART"] = pfm
         audio.tags["aART"] = pfm
 
-    # コメント（番組説明や info）
+    # Set comment (description and info)
     desc = program.get_desc(channel, area_id)
     info = program.get_info(channel, area_id)
     comment_text = ""
@@ -138,17 +195,17 @@ def set_mp4_meta(program, channel, area_id, rec_file, track_num=None):
     if comment_text:
         audio.tags["\xa9cmt"] = comment_text
 
-    # ジャンル
+    # Set genre
     audio.tags["\xa9gen"] = "Radio"
 
-    # トラック番号（録音回数などを渡せるように）
+    # Set track number (if provided)
     if track_num:
         audio.tags["trkn"] = [(track_num, 0)]
 
-    # ディスク番号（固定で 1）
+    # Set disk number (fixed to 1)
     audio.tags["disk"] = [(1, 1)]
 
-    # カバーアート
+    # Set cover art from program image
     logo_url = program.get_img(channel, area_id)
     if logo_url:
         coverart = requests.get(logo_url, timeout=(20, 5)).content
@@ -158,37 +215,46 @@ def set_mp4_meta(program, channel, area_id, rec_file, track_num=None):
     audio.save()
 
 
-def main():
-    """
-    Main function for the script.
+def main() -> None:
+    """Main function for Radiko recording.
+
+    Orchestrates the recording workflow: argument parsing, API auth,
+    stream retrieval, recording, and metadata tagging.
     """
     args = get_args()
     channel = args.channel
     duration = int(args.duration * 60)
     outdir = args.outputdir
-    if args.prefix is None:
-        prefix = args.channel
-    else:
-        prefix = args.prefix
-    # setting date
+    prefix = args.prefix if args.prefix else channel
+
+    # Generate timestamps for filename and API query
     date = DT.now().strftime("%Y-%m-%d-%H_%M")
     fromtime = DT.now().strftime("%Y%m%d%H%M00")
     print(f"fromtime = {fromtime}")
-    # Construct RadikoApi
+
+    # Initialize Radiko API client
     api = Radikoapi()
-    # Check whether channel is available
+
+    # Validate channel availability
     if api.is_avail(channel) is False:
-        print(f"Specified station {channel} is not found.")
+        print(f"Error: Specified station {channel} is not found.")
         sys.exit(1)
-    # auhorize, get token and areaid
+
+    # Authorize and get authentication token and area ID
     auth_token, area_id = api.authorize()
-    # get program meta via radiko api
+
+    # Retrieve stream URL and program information
     url = get_streamurl(channel, auth_token)
-    # load program info
     prog = api.load_program(channel, fromtime, None, area_id, now=True)
+
+    # Perform recording
     rec_file = live_rec(url, auth_token, prefix, duration, date, outdir)
+
+    # Handle case where program info was not loaded
     if prog is None:
-        api.load_program(channel, fromtime, None, area_id, now=True)
+        prog = api.load_program(channel, fromtime, None, area_id, now=True)
+
+    # Set MP4 metadata
     set_mp4_meta(api, channel, area_id, rec_file)
     sys.exit(0)
 
