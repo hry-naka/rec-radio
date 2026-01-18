@@ -22,79 +22,69 @@
 # 
 # m h  dom mon dow   command
 
-#@reboot $HOME/.dropbox-dist/dropboxd &
-#00  5 * * * /usr/local/bin/sa-learn-home.sh > /dev/null 2>&1
-#00 12 1 * * /usr/bin/find $HOME/Maildir/.LogWatch/cur/ -ctime +720 -type f -exec /bin/rm -f {} \;
-
-# Update ONAMAE.com DNS
-#NAME=/home/naka-h/git/update-onamae
-#*/30 * * * * $NAME/update-onamae.py -f $NAME/.onamae-env >/dev/null 2>&1
-
-P=/home/naka-h/git/rec-radio
 RP=/home/naka-h/git/rec-radio
 LOGS=/home/naka-h/.local/logs/record_radio.log
 # following line is wrong. $PYTHONPATH doesn't expand, due to cron's spec.
 #PYTHONPATH=/home/naka-h/git/rec-radio:$PYTHONPATH
 # if add new path to PYTHON class library, append ':/new/path/to/lib'.
 PYTHONPATH=/home/naka-h/git/rec-radio
-RECPY=/home/naka-h/git/rec-radio/.venv/bin/python
 
 # Gogaku on NHK R2
 # Radio English Conversaton
-45  6 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
-25 12 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
-15 19 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
-30 21 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 REC -c >> $LOGS 2>&1
+45  6 * * Mon-Fri $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
+25 12 * * Mon-Fri $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
+15 19 * * Mon-Fri $RP/record_radio.py NHK2 REC >> $LOGS 2>&1
+30 21 * * Mon-Fri $RP/record_radio.py NHK2 REC -c >> $LOGS 2>&1
 
 # Eikaiwa Time Trial
-30  8 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
-15 12 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
-25 18 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
-00 23 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ETT -c >> $LOGS 2>&1
+30  8 * * Mon-Fri $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
+15 12 * * Mon-Fri $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
+25 18 * * Mon-Fri $RP/record_radio.py NHK2 ETT >> $LOGS 2>&1
+00 23 * * Mon-Fri $RP/record_radio.py NHK2 ETT -c >> $LOGS 2>&1
 
 # Enjoy Simple English
-55 12 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ESE >> $LOGS 2>&1
-25 16 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ESE >> $LOGS 2>&1
-10 23 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ESE -c >> $LOGS 2>&1
+55 12 * * Mon-Fri $RP/record_radio.py NHK2 ESE >> $LOGS 2>&1
+25 16 * * Mon-Fri $RP/record_radio.py NHK2 ESE >> $LOGS 2>&1
+10 23 * * Mon-Fri $RP/record_radio.py NHK2 ESE -c >> $LOGS 2>&1
 
 # Modern English from NEWS
-30  9 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 MEN >> $LOGS 2>&1
-45 11 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 MEN >> $LOGS 2>&1
-45 20 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 MEN -c >> $LOGS 2>&1
+30  9 * * Mon-Fri $RP/record_radio.py NHK2 MEN >> $LOGS 2>&1
+45 11 * * Mon-Fri $RP/record_radio.py NHK2 MEN >> $LOGS 2>&1
+45 20 * * Mon-Fri $RP/record_radio.py NHK2 MEN -c >> $LOGS 2>&1
 
 # Everyday Chinese
-15  8 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ECN >> $LOGS 2>&1
-00 10 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ECN >> $LOGS 2>&1
-40 13 * * Mon-Fri $RECPY $RP/record_radio.py NHK2 ECN -c >> $LOGS 2>&1
+15  8 * * Mon-Fri $RP/record_radio.py NHK2 ECN >> $LOGS 2>&1
+00 10 * * Mon-Fri $RP/record_radio.py NHK2 ECN >> $LOGS 2>&1
+40 13 * * Mon-Fri $RP/record_radio.py NHK2 ECN -c >> $LOGS 2>&1
 
 # Force sysnchronzie midnight on Mon-Fri.
 30 23 * * Mon-Fri onedrive --synchronize >> $LOGS 2>&1
 
 # JazzReminiscence
-00 21 * * Tue $RECPY $RP/record_radio.py INT JazzReminiscence -c >> $LOGS 2>&1
+00 21 * * Tue $RP/record_radio.py INT JazzReminiscence -c >> $LOGS 2>&1
 # Labrinth 
-25 19 * * Sat $RECPY $RP/record_radio.py FM Labyrinth -c >> $LOGS 2>&1
+25 19 * * Sat $RP/record_radio.py FM Labyrinth -c >> $LOGS 2>&1
 # Otona Jazz Time
-00 23 * * Sat $RECPY $RP/record_radio.py JORF OtonaJazzTime -c >> $LOGS 2>&1
+00 23 * * Sat $RP/record_radio.py JORF OtonaJazzTime -c >> $LOGS 2>&1
 # Jazz Tonight
-00 23 * * Sat $RECPY $RP/record_radio.py FM JazzTonight -c >> $LOGS 2>&1
+00 23 * * Sat $RP/record_radio.py FM JazzTonight -c >> $LOGS 2>&1
 
 # Force sysnchronzie midnight on Sat.
 30 01 * * Sun onedrive --synchronize >> $LOGS 2>&1
 
 # KakeruClassic
-00 14 * * Sun $RECPY $RP/record_radio.py FM KakeruClassic -c >> $LOGS 2>&1
+00 14 * * Sun $RP/record_radio.py FM KakeruClassic -c >> $LOGS 2>&1
 # Taste of Jazz
-00 19 * * Sun $RECPY $RP/record_radio.py RN1 TasteOfJazz -c >> $LOGS 2>&1
+00 19 * * Sun $RP/record_radio.py RN1 TasteOfJazz -c >> $LOGS 2>&1
 # Taste of Jazz Annex (last sunday only)
-30 19 25 1 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
-30 19 22 2 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
+30 19 25 1 * $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
+30 19 22 2 * $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
 # Jazz Voyage
-50 21 * * Sun $RECPY $RP/record_radio.py FM JazzVoyage -c >> $LOGS 2>&1
+50 21 * * Sun $RP/record_radio.py FM JazzVoyage -c >> $LOGS 2>&1
 # Murakami Radio
 # last sunday on every month
-00 19 25 1 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
-00 19 22 2 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+00 19 25 1 * $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+00 19 22 2 * $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
 
 # Force sysnchronzie midnight on Sun.
 30 23 * * Sun onedrive --synchronize >> $LOGS 2>&1
