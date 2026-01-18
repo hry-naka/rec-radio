@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 """Radiko API client module for radio program management.
 
 This module provides a stateless API client for interacting with the Radiko
 radio streaming service. It handles authentication, program retrieval, and
 station information queries.
 """
+
 import base64
 import hashlib
 import json
@@ -472,4 +472,3 @@ if __name__ == "__main__":
             print(f"Description: {program.description}")
     else:
         print("No program found")
-
