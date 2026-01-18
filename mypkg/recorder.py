@@ -56,16 +56,16 @@ class Recorder:
             return False
 
         # Build ffmpeg command with reconnection and auth headers
+        # Use proper line ending format for HTTP headers
         cmd = (
             f"{self.ffmpeg_path} -loglevel {self.loglevel} -y "
             "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
             "-reconnect_delay_max 600 "
             '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
             'AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36" '
-            f'-headers "X-Radiko-AuthToken: {auth_token}\\r\\n" '
+            f'-headers "X-Radiko-AuthToken: {auth_token}\r\n" '
             f'-i "{stream_url}" '
-            f"-t {duration + 5} "
-            f"-acodec copy {output_file}"
+            f"-t {duration} -acodec copy {output_file}"
         )
 
         print(f"Recording command: {cmd}", flush=True)

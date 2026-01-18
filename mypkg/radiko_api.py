@@ -9,6 +9,8 @@ import base64
 import hashlib
 import json
 import random
+import re
+import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime as DT
 from datetime import timedelta as TD
@@ -316,8 +318,6 @@ class RadikoAPIClient:
         Returns:
             Stream URL string, or None if failed.
         """
-        import re
-
         stream_url = self.STREAM_URL.format(channel)
         stream_url += "/_definst_/simul-stream.stream/playlist.m3u8"
         headers = {
@@ -358,35 +358,49 @@ class RadikoAPIClient:
         time_filter: str = "past",
         area_id: str = "JP13",
     ) -> dict:
-        """Search for programs matching the specified keyword.
+        """Search for programs by keyword.
 
         Args:
-            keyword: Search keyword
-            time_filter: Time filter (past, now, future)
-            area_id: Area ID. Defaults to "JP13".
+            keyword: Keyword to search for in program titles.
+            time_filter: Time filter for search ('past', 'future', 'all').
+                Defaults to "past".
+            area_id: Area ID for search. Defaults to "JP13".
 
         Returns:
-            Search results as dictionary.
+            Dictionary containing search results with 'data' key, or empty dict
+            if request fails.
         """
+        # Generate unique ID for request
+        uid = self._generate_uid()
+
+        # Use the actual Radiko search API endpoint
+        search_url = (
+            "https://api.annex-cf.radiko.jp/v1/programs/legacy/" "perl/program/search"
+        )
+
         params = {
             "key": keyword,
-            "filter": time_filter,
+            "filter": "",
             "start_day": "",
             "end_day": "",
             "area_id": area_id,
             "region_id": "",
-            "cul_area_id": area_id,
-            "page_idx": "0",
-            "uid": self._generate_uid(),
-            "row_limit": "12",
+            "cur_area_id": area_id,
+            "uid": uid,
+            "row_limit": 12,
             "app_id": "pc",
-            "action_id": "0",
+            "action_id": 0,
         }
+
         try:
-            response = requests.get(self.SEARCH_URL, params=params, timeout=(20, 5))
-            return json.loads(response.content)
+            response = requests.get(search_url, params=params, timeout=10)
+            response.raise_for_status()
+
+            if response.content:
+                return response.json()
+            return {}
         except requests.exceptions.RequestException as e:
-            print(f"Error searching programs: {e}")
+            print(f"Error searching programs: {e}", file=sys.stderr)
             return {}
 
     def authorize(self) -> Optional[Tuple[str, str]]:
