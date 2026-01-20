@@ -272,7 +272,12 @@ class RadikoApi:
             RadikoApiHttpError: If HTTP request fails.
             RadikoApiXmlError: If XML parsing fails.
         """
-        url = self.BASE_PROGRAM_NOW_URL.format(station)
+        # Use today's date to fetch current program
+        from datetime import datetime
+
+        today = datetime.now().strftime("%Y%m%d")
+        url = self.BASE_PROGRAM_DATE_URL.format(today, station)
+
         try:
             response = requests.get(url, timeout=self.timeout)
             response.raise_for_status()
@@ -281,7 +286,7 @@ class RadikoApi:
 
         try:
             root = ET.fromstring(response.content)
-            # Find the first program element
+            # Find the first program element (current program)
             prog_elem = root.find(".//prog")
             if prog_elem is None:
                 return None
@@ -323,6 +328,66 @@ class RadikoApi:
         except ET.ParseError as e:
             raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
 
+    def authorize(self) -> Optional[Tuple[str, str]]:
+        """Perform Radiko authentication.
+
+        Executes two-step authentication to obtain auth token and area ID.
+
+        Returns:
+            Tuple of (auth_token, area_id) if successful, None otherwise.
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+        """
+        headers = {
+            "x-radiko-app": "pc_html5",
+            "x-radiko-app-version": "0.0.1",
+            "x-radiko-device": "pc",
+            "x-radiko-user": "dummy_user",
+        }
+
+        try:
+            # Step 1: Get initial token and key offset/length
+            response1 = requests.get(self.AUTH1_URL, headers=headers, timeout=(20, 5))
+            if response1.status_code != 200:
+                raise RadikoApiHttpError(
+                    f"Authorization error (phase 1): {response1.status_code}"
+                )
+
+            token = response1.headers.get("x-radiko-authtoken")
+            offset = int(response1.headers.get("x-radiko-keyoffset", 0))
+            length = int(response1.headers.get("x-radiko-keylength", 0))
+
+            if not token or length == 0:
+                return None
+
+            # Step 2: Compute partial key and request second token
+            # AUTH_KEY is already a string, extract substring and encode
+            partial_key = base64.b64encode(
+                self.AUTH_KEY[offset : offset + length].encode("ascii")
+            ).decode("utf-8")
+
+            auth_headers = {
+                "x-radiko-authtoken": token,
+                "x-radiko-device": "pc",
+                "x-radiko-partialkey": partial_key,
+                "x-radiko-user": "dummy_user",
+            }
+            response2 = requests.get(
+                self.AUTH2_URL,
+                headers=auth_headers,
+                timeout=(20, 5),
+            )
+            if response2.status_code != 200:
+                raise RadikoApiHttpError(
+                    f"Authorization error (phase 2): {response2.status_code}"
+                )
+
+            area_id = response2.text.split(",")[0]
+            return (token, area_id)
+        except requests.exceptions.RequestException as e:
+            raise RadikoApiHttpError(f"Authorization failed: {e}") from e
+
     def get_stream_url(self, channel: str, auth_token: str) -> Optional[str]:
         """Retrieve M3U8 stream URL from Radiko server.
 
@@ -336,51 +401,37 @@ class RadikoApi:
         Raises:
             RadikoApiHttpError: If HTTP request fails.
         """
-        url = self.BASE_STREAM_URL.format(channel)
+        playlist_url = self.BASE_STREAM_URL.format(channel)
+        playlist_url += "/_definst_/simul-stream.stream/playlist.m3u8"
+        headers = {
+            "X-Radiko-AuthToken": auth_token,
+        }
         try:
             response = requests.get(
-                url,
-                headers={"X-Radiko-AuthToken": auth_token},
-                timeout=self.timeout,
+                playlist_url,
+                headers=headers,
+                timeout=(20, 5),
             )
             response.raise_for_status()
-            return response.text.strip()
+
+            # Parse M3U8 playlist and extract actual stream URL
+            for line in response.text.split("\n"):
+                line = line.strip()
+                # Skip comments and empty lines
+                if line and not line.startswith("#"):
+                    # This is the actual chunklist URL
+                    if "chunklist" in line:
+                        # If relative URL, make it absolute
+                        if line.startswith("http"):
+                            return line
+                        else:
+                            # Construct absolute URL from playlist URL
+                            base_url = "/".join(playlist_url.split("/")[:-1])
+                            return f"{base_url}/{line}"
+
+            return None
         except requests.exceptions.RequestException as e:
             raise RadikoApiHttpError(f"Stream URL retrieval failed: {e}") from e
-
-    def authorize(self) -> Optional[Tuple[str, str]]:
-        """Perform Radiko authentication.
-
-        Executes two-step authentication to obtain auth token and area ID.
-
-        Returns:
-            Tuple of (auth_token, area_id) if successful, None otherwise.
-
-        Raises:
-            RadikoApiHttpError: If HTTP request fails.
-        """
-        try:
-            # Step 1: Initial auth request
-            response1 = requests.post(self.AUTH1_URL, timeout=self.timeout)
-            response1.raise_for_status()
-            auth_token = response1.headers.get("X-Radiko-AuthToken")
-
-            if not auth_token:
-                return None
-
-            # Step 2: Get area ID
-            response2 = requests.get(
-                self.AUTH2_URL,
-                headers={"X-Radiko-AuthToken": auth_token},
-                timeout=self.timeout,
-            )
-            response2.raise_for_status()
-            area_id = response2.text.strip()
-
-            return (auth_token, area_id)
-
-        except requests.exceptions.RequestException as e:
-            raise RadikoApiHttpError(f"Authorization failed: {e}") from e
 
     def search_programs(
         self,

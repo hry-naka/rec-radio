@@ -16,7 +16,7 @@ import sys
 from datetime import datetime as DT
 
 from mypkg.program_formatter import ProgramFormatter
-from mypkg.radiko_api import RadikoAPIClient
+from mypkg.radiko_api import RadikoApi
 from mypkg.recorder import Recorder
 
 
@@ -69,7 +69,7 @@ def main() -> None:
     print(f"Recording start time: {fromtime}")
 
     # Initialize Radiko API client and recorder
-    api_client = RadikoAPIClient()
+    api_client = RadikoApi()
     recorder = Recorder()
 
     # Validate recorder is available
@@ -100,7 +100,7 @@ def main() -> None:
     print(f"Stream URL: {stream_url}")
 
     # Fetch program information
-    program = api_client.fetch_program(channel, fromtime, None, area_id, now=True)
+    program = api_client.fetch_now_program(channel, area_id=area_id)
     if program is None:
         print("Warning: Program information not available")
         program_info = "(Unknown)"

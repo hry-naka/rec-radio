@@ -1,16 +1,11 @@
-"""Unit tests for RadikoApi client.
+"""Unit tests for RadikoApi class."""
 
-This module provides comprehensive unit tests for the RadikoApi class,
-including:
-- Initialization tests
-- API method tests with mocking
-- Error handling tests
-- XML parsing tests
-"""
-
+import base64
 import unittest
-from unittest.mock import MagicMock, patch
 import xml.etree.ElementTree as ET
+from unittest.mock import MagicMock, patch
+
+import requests
 
 from mypkg.radiko_api import (
     RadikoApi,
@@ -49,49 +44,57 @@ class TestRadikoApiInitialization(unittest.TestCase):
 
 
 class TestRadikoApiAuthorization(unittest.TestCase):
-    """Tests for Radiko authorization methods."""
+    """Tests for Radiko authorization."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.api = RadikoApi()
 
-    @patch("requests.post")
     @patch("requests.get")
-    def test_authorize_success(self, mock_get, mock_post):
+    def test_authorize_success(self, mock_get):
         """Test successful authorization flow."""
-        # Mock first request
+        # Mock response1 (auth1)
         mock_response1 = MagicMock()
-        mock_response1.headers = {"X-Radiko-AuthToken": "test_token_123"}
-        mock_post.return_value = mock_response1
+        mock_response1.status_code = 200
+        mock_response1.headers = {
+            "x-radiko-authtoken": "test_token_12345",
+            "x-radiko-keyoffset": "0",
+            "x-radiko-keylength": "16",
+        }
 
-        # Mock second request
+        # Mock response2 (auth2)
         mock_response2 = MagicMock()
-        mock_response2.text = "JP13"
-        mock_get.return_value = mock_response2
+        mock_response2.status_code = 200
+        mock_response2.text = "JP13,Tokyo"
+
+        # Set side_effect to return different responses for each call
+        mock_get.side_effect = [mock_response1, mock_response2]
 
         result = self.api.authorize()
 
         self.assertIsNotNone(result)
-        auth_token, area_id = result
-        self.assertEqual(auth_token, "test_token_123")
-        self.assertEqual(area_id, "JP13")
+        self.assertEqual(result[0], "test_token_12345")
+        self.assertEqual(result[1], "JP13")
 
-    @patch("requests.post")
-    def test_authorize_no_token(self, mock_post):
+    @patch("requests.get")
+    def test_authorize_no_token(self, mock_get):
         """Test authorization when auth token is not returned."""
         mock_response = MagicMock()
-        mock_response.headers = {}
-        mock_post.return_value = mock_response
+        mock_response.status_code = 200
+        mock_response.headers = {
+            "x-radiko-keyoffset": "0",
+            "x-radiko-keylength": "16",
+        }
+        mock_get.return_value = mock_response
 
         result = self.api.authorize()
+
         self.assertIsNone(result)
 
-    @patch("requests.post")
-    def test_authorize_http_error(self, mock_post):
+    @patch("requests.get")
+    def test_authorize_http_error(self, mock_get):
         """Test authorization with HTTP error."""
-        import requests
-
-        mock_post.side_effect = requests.exceptions.ConnectionError("Connection failed")
+        mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
 
         with self.assertRaises(RadikoApiHttpError):
             self.api.authorize()
@@ -265,32 +268,37 @@ class TestRadikoApiProgramMethods(unittest.TestCase):
 
 
 class TestRadikoApiStreamMethods(unittest.TestCase):
-    """Tests for stream-related methods."""
+    """Tests for stream URL retrieval methods."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.api = RadikoApi()
+        self.sample_m3u8 = (
+            "#EXTM3U\n"
+            "#EXT-X-VERSION:3\n"
+            "#EXT-X-STREAM-INF:BANDWIDTH=48706\n"
+            "https://example.com/chunklist_w123456.m3u8\n"
+        )
 
     @patch("requests.get")
     def test_get_stream_url_success(self, mock_get):
         """Test successful stream URL retrieval."""
         mock_response = MagicMock()
-        mock_response.text = "https://example.com/stream.m3u8"
+        mock_response.text = self.sample_m3u8
         mock_get.return_value = mock_response
 
-        result = self.api.get_stream_url("TBS", "test_token")
+        result = self.api.get_stream_url("INT", "test_token")
 
-        self.assertEqual(result, "https://example.com/stream.m3u8")
+        self.assertIsNotNone(result)
+        self.assertEqual(result, "https://example.com/chunklist_w123456.m3u8")
 
     @patch("requests.get")
     def test_get_stream_url_http_error(self, mock_get):
         """Test stream URL retrieval with HTTP error."""
-        import requests
-
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
 
         with self.assertRaises(RadikoApiHttpError):
-            self.api.get_stream_url("TBS", "test_token")
+            self.api.get_stream_url("INT", "test_token")
 
 
 class TestRadikoApiSearchMethods(unittest.TestCase):
