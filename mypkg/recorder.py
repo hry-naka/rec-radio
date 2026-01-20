@@ -56,7 +56,6 @@ class Recorder:
             return False
 
         # Build ffmpeg command with reconnection and auth headers
-        # Use proper line ending format for HTTP headers
         cmd = (
             f"{self.ffmpeg_path} -loglevel {self.loglevel} -y "
             "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
@@ -112,15 +111,15 @@ class Recorder:
 
             # Set title
             if program.title:
-                audio.tags["\xa9nam"] = program.title
+                audio.tags["\xa9nam"] = [program.title]
 
             # Set album (station name)
-            audio.tags["\xa9alb"] = program.station
+            audio.tags["\xa9alb"] = [program.station]
 
             # Set artist (performer/host)
             if program.performer:
-                audio.tags["\xa9ART"] = program.performer
-                audio.tags["aART"] = program.performer
+                audio.tags["\xa9ART"] = [program.performer]
+                audio.tags["aART"] = [program.performer]
 
             # Set comment (description and info)
             comment = ProgramFormatter.get_metadata_comment(
@@ -128,10 +127,10 @@ class Recorder:
                 program.info,
             )
             if comment:
-                audio.tags["\xa9cmt"] = comment
+                audio.tags["\xa9cmt"] = [comment]
 
             # Set genre
-            audio.tags["\xa9gen"] = "Radio"
+            audio.tags["\xa9gen"] = ["Radio"]
 
             # Set track number if provided
             if track_num:

@@ -191,34 +191,29 @@ class ProgramFormatter:
         )
 
     @staticmethod
-    def get_metadata_comment(program: Program) -> str:
-        """Generate comment metadata from program description and info.
+    def get_metadata_comment(
+        description: Optional[str] = None, info: Optional[str] = None
+    ) -> str:
+        """Generate metadata comment string for recorded file.
 
         Args:
-            program: Program information
+            description: Program description (NHK)
+            info: Additional info string (Radiko)
 
         Returns:
-            Formatted comment string for metadata
+            Formatted comment string
 
         Example:
-            >>> program = Program(
-            ...     title="...",
-            ...     description="Japanese music variety",
-            ...     program_sub_title="DJ: Alice",
-            ...     source="radiko",
-            ...     ...
+            >>> comment = ProgramFormatter.get_metadata_comment(
+            ...     description="Jazz program",
+            ...     info="Additional info"
             ... )
-            >>> ProgramFormatter.get_metadata_comment(program)
-            >>> # Returns: "Japanese music variety / DJ: Alice"
         """
-        parts = []
-        if program.description:
-            parts.append(program.description)
-        if program.program_sub_title:
-            parts.append(program.program_sub_title)
-        if program.performer:
-            parts.append(f"Performer: {program.performer}")
-        return " / ".join(parts) if parts else program.title
+        if description:
+            return description
+        elif info:
+            return info
+        return ""
 
     @staticmethod
     def get_status_message(

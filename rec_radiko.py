@@ -124,12 +124,13 @@ def main() -> None:
 
     print("Recording completed successfully")
 
-    # Set MP4 metadata if program information is available
+    # Setting metadata
     if program is not None:
-        print("Setting metadata...")
-        if recorder.set_metadata(output_file, program):
+        try:
+            recorder.set_metadata(output_file, program)
             print("Metadata set successfully")
-        else:
+        except Exception as e:
+            print(f"Error setting metadata: {e}")
             print("Warning: Failed to set metadata")
     else:
         print("Skipping metadata (program info not available)")
