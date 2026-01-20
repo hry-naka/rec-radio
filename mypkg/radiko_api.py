@@ -3,6 +3,10 @@
 This module provides a stateless API client for interacting with the Radiko
 radio streaming service. It handles authentication, program retrieval, and
 station information queries.
+
+Attributes:
+    BASE_URL (str): Base URL for Radiko API endpoints.
+    DEFAULT_TIMEOUT (int): Default timeout for API requests in seconds.
 """
 
 import base64
@@ -14,75 +18,123 @@ import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime as DT
 from datetime import timedelta as TD
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
 from .program import Program
 
 
-class RadikoAPIClient:
+class RadikoApiError(Exception):
+    """Base exception for Radiko API errors."""
+
+    pass
+
+
+class RadikoApiHttpError(RadikoApiError):
+    """Exception raised for HTTP/network errors."""
+
+    pass
+
+
+class RadikoApiXmlError(RadikoApiError):
+    """Exception raised for XML parsing errors."""
+
+    pass
+
+
+class RadikoApi:
     """Stateless client for Radiko API interactions.
 
     This class provides methods for authentication, station information
     retrieval, and program data fetching from the Radiko API.
+
+    Attributes:
+        BASE_SEARCH_URL (str): Base URL for program search.
+        BASE_STATION_URL (str): Base URL for station list.
+        BASE_PROGRAM_URL (str): Base URL for program data.
+        DEFAULT_TIMEOUT (int): Default timeout in seconds.
     """
 
     # API endpoints
-    SEARCH_URL = "https://radiko.jp/v3/api/program/search"
-    STATION_LIST_URL = "https://radiko.jp/v3/station/list/{}.xml"
-    NOW_URL = "https://radiko.jp/v3/program/now/{}.xml"
-    WEEKLY_URL = "https://radiko.jp/v3/program/station/weekly/{}.xml"
-    TODAY_URL = "http://radiko.jp/v3/program/station/date/{}/{}.xml"
-    AUTH_KEY = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
+    BASE_SEARCH_URL = "https://radiko.jp/v3/api/program/search"
+    BASE_STATION_URL = "https://radiko.jp/v3/station/list/{}.xml"
+    BASE_PROGRAM_NOW_URL = "https://radiko.jp/v3/program/now/{}.xml"
+    BASE_PROGRAM_WEEKLY_URL = "https://radiko.jp/v3/program/station/weekly/{}.xml"
+    BASE_PROGRAM_DATE_URL = "http://radiko.jp/v3/program/station/date/{}/{}.xml"
+    BASE_STREAM_URL = "https://f-radiko.smartstream.ne.jp/{}"
     AUTH1_URL = "https://radiko.jp/v2/api/auth1"
     AUTH2_URL = "https://radiko.jp/v2/api/auth2"
-    STREAM_URL = "https://f-radiko.smartstream.ne.jp/{}"
+    AUTH_KEY = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
+    DEFAULT_TIMEOUT = 10
+    DEFAULT_AREA_ID = "JP13"
 
-    def __init__(self):
-        """Initialize API client."""
-        pass
+    def __init__(self, timeout: int = DEFAULT_TIMEOUT) -> None:
+        """Initialize Radiko API client.
 
-    def get_station_list(self, area_id: str = "JP13") -> Optional[ET.Element]:
+        Args:
+            timeout: Request timeout in seconds. Defaults to 10.
+
+        Raises:
+            ValueError: If timeout is not positive.
+        """
+        if timeout <= 0:
+            raise ValueError("Timeout must be positive")
+        self.timeout = timeout
+
+    def get_station_list(self, area_id: str = DEFAULT_AREA_ID) -> Optional[ET.Element]:
         """Get the list of stations for the specified area.
 
         Args:
-            area_id: The ID of the area. Defaults to "JP13".
+            area_id: Area ID. Defaults to "JP13".
 
         Returns:
-            XML element representing the station list, or None if failed.
-        """
-        station_list_url = self.STATION_LIST_URL.format(area_id)
-        try:
-            resp = requests.get(station_list_url, timeout=(20, 5))
-            if resp.status_code == 200:
-                return ET.fromstring(resp.content.decode("utf-8"))
-            else:
-                print(f"Error fetching station list: {resp.status_code}")
-                return None
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching station list: {e}")
-            return None
+            XML root element representing the station list, or None if failed.
 
-    def is_station_available(self, station: str, area_id: str = "JP13") -> bool:
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+            RadikoApiXmlError: If XML parsing fails.
+        """
+        url = self.BASE_STATION_URL.format(area_id)
+        try:
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise RadikoApiHttpError(f"HTTP request failed: {e}") from e
+
+        try:
+            return ET.fromstring(response.content)
+        except ET.ParseError as e:
+            raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
+
+    def is_station_available(
+        self, station: str, area_id: str = DEFAULT_AREA_ID
+    ) -> bool:
         """Check if the specified station is available in the given area.
 
         Args:
-            station: Station ID
+            station: Station ID.
             area_id: Area ID. Defaults to "JP13".
 
         Returns:
             True if the station is available, False otherwise.
+
+        Raises:
+            RadikoApiError: If station list retrieval fails.
         """
         station_list = self.get_station_list(area_id)
         if station_list is None:
             return False
+
         for station_elem in station_list.iter("id"):
             if station_elem.text == station:
                 return True
+
         return False
 
-    def get_channel_list(self, area_id: str = "JP13") -> Tuple[List[str], List[str]]:
+    def get_channel_list(
+        self, area_id: str = DEFAULT_AREA_ID
+    ) -> Tuple[List[str], List[str]]:
         """Get the list of channel IDs and names for the specified area.
 
         Args:
@@ -90,15 +142,23 @@ class RadikoAPIClient:
 
         Returns:
             Tuple of (channel IDs list, channel names list).
+
+        Raises:
+            RadikoApiError: If station list retrieval fails.
         """
         station_list = self.get_station_list(area_id)
         id_list = []
         name_list = []
+
         if station_list is not None:
-            for station_id in station_list.iter("id"):
-                id_list.append(station_id.text)
-            for name in station_list.iter("name"):
-                name_list.append(name.text)
+            for id_elem in station_list.iter("id"):
+                if id_elem.text:
+                    id_list.append(id_elem.text)
+
+            for name_elem in station_list.iter("name"):
+                if name_elem.text:
+                    name_list.append(name_elem.text)
+
         return id_list, name_list
 
     def _extract_program_from_xml(
@@ -157,332 +217,270 @@ class RadikoAPIClient:
         self,
         station: str,
         current_time: str,
-        area_id: str = "JP13",
+        area_id: str = DEFAULT_AREA_ID,
     ) -> Optional[Program]:
         """Fetch today's program schedule and find the program at current time.
 
         Args:
-            station: Station ID
-            current_time: Current time in YYYYMMDDHHMMSS format
+            station: Station ID.
+            current_time: Current time in YYYYMMDDHHMMSS format.
             area_id: Area ID. Defaults to "JP13".
 
         Returns:
             Program object if found, None otherwise.
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+            RadikoApiXmlError: If XML parsing fails.
         """
-        url = self.TODAY_URL.format(current_time[:8], station)
-        print(f"Fetching: {url}")
+        url = self.BASE_PROGRAM_DATE_URL.format(current_time[:8], station)
         try:
-            resp = requests.get(url, timeout=(20, 5))
-            if resp.status_code != 200:
-                print(f"Error: {resp.status_code}")
-                return None
-
-            root = ET.fromstring(resp.content.decode("utf-8"))
-            progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
-
-            if not progs:
-                print("No programs found for today.")
-                return None
-
-            # Find program containing current_time
-            for prog in progs:
-                ft = prog.attrib.get("ft")
-                to = prog.attrib.get("to")
-                if ft and to and ft <= current_time < to:
-                    print(
-                        f"Current program found: {ft}-{to} "
-                        f"(current: {current_time})"
-                    )
-                    return self._extract_program_from_xml(root, station, ft)
-
-            print(f"No program found for current time: {current_time}")
-            return None
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching program: {e}")
-            return None
+            raise RadikoApiHttpError(f"HTTP request failed: {e}") from e
+
+        try:
+            root = ET.fromstring(response.content)
+            return self._extract_program_from_xml(root, station, current_time[:8])
+        except ET.ParseError as e:
+            raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
 
     def fetch_now_program(
         self,
         station: str,
-        current_time: str,
-        area_id: str = "JP13",
+        area_id: str = DEFAULT_AREA_ID,
     ) -> Optional[Program]:
         """Fetch now-on-air program information.
 
         Args:
-            station: Station ID
-            current_time: Current time in YYYYMMDDHHMMSS format
+            station: Station ID.
             area_id: Area ID. Defaults to "JP13".
 
         Returns:
             Program object if found, None otherwise.
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+            RadikoApiXmlError: If XML parsing fails.
         """
+        url = self.BASE_PROGRAM_NOW_URL.format(station)
         try:
-            resp = requests.get(self.NOW_URL.format(area_id), timeout=(20, 5))
-            if resp.status_code != 200:
-                print(f"Error: {resp.status_code}")
-                return None
-
-            root = ET.fromstring(resp.content.decode("utf-8"))
-            progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
-
-            if not progs:
-                print("No programs found.")
-                return None
-
-            # Find program containing current_time
-            for prog in progs:
-                ft = prog.attrib.get("ft")
-                to = prog.attrib.get("to")
-                if ft and to and ft <= current_time < to:
-                    print(f"Current program: {ft}-{to} " f"(current: {current_time})")
-                    return self._extract_program_from_xml(root, station, ft)
-
-            print(f"No program found for current time: {current_time}")
-            return None
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching program: {e}")
-            return None
+            raise RadikoApiHttpError(f"HTTP request failed: {e}") from e
+
+        try:
+            root = ET.fromstring(response.content)
+            # Find the first program element
+            prog_elem = root.find(".//prog")
+            if prog_elem is None:
+                return None
+
+            return self._extract_program_from_element(prog_elem, station)
+        except ET.ParseError as e:
+            raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
 
     def fetch_weekly_program(
         self,
         station: str,
-        from_time: str,
-        to_time: Optional[str] = None,
     ) -> Optional[Program]:
-        """Fetch weekly program schedule for specified time range.
+        """Fetch weekly program schedule.
 
         Args:
-            station: Station ID
-            from_time: Start time in YYYYMMDDHHMMSS format
-            to_time: End time in YYYYMMDDHHMMSS format (optional)
+            station: Station ID.
 
         Returns:
             Program object if found, None otherwise.
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+            RadikoApiXmlError: If XML parsing fails.
         """
-        weekly_url = self.WEEKLY_URL.format(station)
+        url = self.BASE_PROGRAM_WEEKLY_URL.format(station)
         try:
-            resp = requests.get(weekly_url, timeout=(20, 5))
-            if resp.status_code != 200:
-                print(f"Error: {resp.status_code}")
-                return None
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise RadikoApiHttpError(f"HTTP request failed: {e}") from e
 
-            root = ET.fromstring(resp.content.decode("utf-8"))
-
-            # Find program by time range
-            if to_time is None:
-                prog_elem = root.find(f'.//prog[@ft="{from_time}"]')
-            else:
-                prog_elem = root.find(f'.//prog[@ft="{from_time}"][@to="{to_time}"]')
-
+        try:
+            root = ET.fromstring(response.content)
+            prog_elem = root.find(".//prog")
             if prog_elem is None:
                 return None
 
-            return self._extract_program_from_xml(root, station, from_time)
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching program: {e}")
-            return None
-
-    def fetch_program(
-        self,
-        station: str,
-        from_time: str,
-        to_time: Optional[str] = None,
-        area_id: str = "JP13",
-        now: bool = False,
-    ) -> Optional[Program]:
-        """Fetch program information.
-
-        Args:
-            station: Station ID
-            from_time: Start time in YYYYMMDDHHMMSS format
-            to_time: End time in YYYYMMDDHHMMSS format (optional)
-            area_id: Area ID. Defaults to "JP13".
-            now: Whether to fetch current program. Defaults to False.
-
-        Returns:
-            Program object if found, None otherwise.
-        """
-        if now:
-            return self.fetch_today_program(station, from_time, area_id)
-        else:
-            return self.fetch_weekly_program(station, from_time, to_time)
+            return self._extract_program_from_element(prog_elem, station)
+        except ET.ParseError as e:
+            raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
 
     def get_stream_url(self, channel: str, auth_token: str) -> Optional[str]:
         """Retrieve M3U8 stream URL from Radiko server.
 
         Args:
-            channel: Channel ID
-            auth_token: Authentication token
+            channel: Channel ID.
+            auth_token: Authentication token.
 
         Returns:
             Stream URL string, or None if failed.
-        """
-        stream_url = self.STREAM_URL.format(channel)
-        stream_url += "/_definst_/simul-stream.stream/playlist.m3u8"
-        headers = {
-            "X-Radiko-AuthToken": auth_token,
-        }
-        try:
-            resp = requests.get(stream_url, headers=headers, timeout=(20, 5))
-            if resp.status_code == 200:
-                # Extract M3U8 URL from response body
-                lines = re.findall("^https?://.+m3u8$", resp.text, flags=re.MULTILINE)
-                if lines:
-                    return lines[0]
-                print("Error: No M3U8 URL found in response.")
-                return None
-            else:
-                print(
-                    f"Error: Failed to get stream URL " f"(status {resp.status_code})"
-                )
-                return None
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching stream URL: {e}")
-            return None
 
-    @staticmethod
-    def _generate_uid() -> str:
-        """Generate a unique ID for API requests.
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+        """
+        url = self.BASE_STREAM_URL.format(channel)
+        try:
+            response = requests.get(
+                url,
+                headers={"X-Radiko-AuthToken": auth_token},
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            return response.text.strip()
+        except requests.exceptions.RequestException as e:
+            raise RadikoApiHttpError(f"Stream URL retrieval failed: {e}") from e
+
+    def authorize(self) -> Optional[Tuple[str, str]]:
+        """Perform Radiko authentication.
+
+        Executes two-step authentication to obtain auth token and area ID.
 
         Returns:
-            Unique ID string.
+            Tuple of (auth_token, area_id) if successful, None otherwise.
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
         """
-        rnd = random.random() * 1000000000
-        msec = TD.total_seconds(DT.now() - DT(1970, 1, 1)) * 1000
-        return hashlib.md5(str(rnd + msec).encode("utf-8")).hexdigest()
+        try:
+            # Step 1: Initial auth request
+            response1 = requests.post(self.AUTH1_URL, timeout=self.timeout)
+            response1.raise_for_status()
+            auth_token = response1.headers.get("X-Radiko-AuthToken")
+
+            if not auth_token:
+                return None
+
+            # Step 2: Get area ID
+            response2 = requests.get(
+                self.AUTH2_URL,
+                headers={"X-Radiko-AuthToken": auth_token},
+                timeout=self.timeout,
+            )
+            response2.raise_for_status()
+            area_id = response2.text.strip()
+
+            return (auth_token, area_id)
+
+        except requests.exceptions.RequestException as e:
+            raise RadikoApiHttpError(f"Authorization failed: {e}") from e
 
     def search_programs(
         self,
         keyword: str = "",
         time_filter: str = "past",
-        area_id: str = "JP13",
-    ) -> dict:
-        """Search for programs by keyword.
+        area_id: str = DEFAULT_AREA_ID,
+    ) -> Dict[str, Any]:
+        """Search programs by keyword.
 
         Args:
-            keyword: Keyword to search for in program titles.
-            time_filter: Time filter for search ('past', 'future', 'all').
-                Defaults to "past".
-            area_id: Area ID for search. Defaults to "JP13".
+            keyword: Search keyword.
+            time_filter: Time filter ("past", "today", "future"). Defaults to "past".
+            area_id: Area ID. Defaults to "JP13".
 
         Returns:
-            Dictionary containing search results with 'data' key, or empty dict
-            if request fails.
+            Search results as dictionary.
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+            RadikoApiJsonError: If response parsing fails.
         """
-        # Generate unique ID for request
-        uid = self._generate_uid()
-
-        # Use the actual Radiko search API endpoint
-        search_url = (
-            "https://api.annex-cf.radiko.jp/v1/programs/legacy/" "perl/program/search"
-        )
-
         params = {
-            "key": keyword,
-            "filter": "",
-            "start_day": "",
-            "end_day": "",
+            "keyword": keyword,
+            "time_filter": time_filter,
             "area_id": area_id,
-            "region_id": "",
-            "cur_area_id": area_id,
-            "uid": uid,
-            "row_limit": 12,
-            "app_id": "pc",
-            "action_id": 0,
         }
-
         try:
-            response = requests.get(search_url, params=params, timeout=10)
+            response = requests.get(
+                self.BASE_SEARCH_URL, params=params, timeout=self.timeout
+            )
             response.raise_for_status()
-
-            if response.content:
-                return response.json()
-            return {}
+            return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error searching programs: {e}", file=sys.stderr)
-            return {}
-
-    def authorize(self) -> Optional[Tuple[str, str]]:
-        """Perform Radiko API authentication.
-
-        Returns two-step OAuth-like authentication to obtain token and area ID.
-
-        Returns:
-            Tuple of (auth_token, area_id) or None if authentication failed.
-        """
-        # Step 1: Get initial token and key offset
-        headers = {
-            "x-radiko-app": "pc_html5",
-            "x-radiko-app-version": "0.0.1",
-            "x-radiko-device": "pc",
-            "x-radiko-user": "dummy_user",
-        }
-        try:
-            res = requests.get(self.AUTH1_URL, headers=headers, timeout=(20, 5))
-            if res.status_code != 200:
-                print(f"Authorization error (phase 1): " f"{res.status_code}")
-                return None
-
-            token = res.headers["x-radiko-authtoken"]
-            offset = int(res.headers["x-radiko-keyoffset"])
-            length = int(res.headers["x-radiko-keylength"])
-
-            # Step 2: Compute partial key and request second token
-            partial_key = base64.b64encode(
-                self.AUTH_KEY[offset : offset + length].encode("ascii")
-            ).decode("utf-8")
-
-            headers = {
-                "x-radiko-authtoken": token,
-                "x-radiko-device": "pc",
-                "x-radiko-partialkey": partial_key,
-                "x-radiko-user": "dummy_user",
-            }
-            res = requests.get(self.AUTH2_URL, headers=headers, timeout=(20, 5))
-            if res.status_code != 200:
-                print(f"Authorization error (phase 2): " f"{res.status_code}")
-                return None
-
-            area_id = res.text.split(",")[0]
-            return token, area_id
-        except requests.exceptions.RequestException as e:
-            print(f"Authorization error: {e}")
-            return None
+            raise RadikoApiHttpError(f"Program search failed: {e}") from e
+        except ValueError as e:
+            raise RadikoApiXmlError(f"JSON parsing failed: {e}") from e
 
     def dump(self) -> None:
-        """Dump API statistics (for debugging)."""
-        print("Note: RadikoAPIClient is stateless.")
+        """Dump API client status (for debugging).
+
+        Note: RadikoApi is stateless, so this only shows configuration.
+        """
+        print(f"RadikoApi(timeout={self.timeout}s)")
+
+    @staticmethod
+    def _extract_program_from_element(
+        prog_elem: ET.Element, station: str
+    ) -> Optional[Program]:
+        """Extract program information from XML prog element.
+
+        Args:
+            prog_elem: XML prog element.
+            station: Station ID.
+
+        Returns:
+            Program object or None if required fields are missing.
+
+        Raises:
+            RadikoApiXmlError: If extraction fails.
+        """
+        try:
+            title_elem = prog_elem.find("title")
+            pfm_elem = prog_elem.find("pfm")
+            desc_elem = prog_elem.find("desc")
+            info_elem = prog_elem.find("info")
+            img_elem = prog_elem.find("img")
+            url_elem = prog_elem.find("url")
+
+            title = title_elem.text if title_elem is not None else ""
+            performer = pfm_elem.text if pfm_elem is not None else None
+            description = desc_elem.text if desc_elem is not None else None
+            info = info_elem.text if info_elem is not None else None
+            image_url = img_elem.text if img_elem is not None else None
+            url = url_elem.text if url_elem is not None else None
+
+            ft_attr = prog_elem.attrib.get("ft", "")
+            to_attr = prog_elem.attrib.get("to", "")
+            dur = int(prog_elem.attrib.get("dur", 0))
+
+            return Program(
+                title=title,
+                station=station,
+                area="JP13",
+                start_time=ft_attr,
+                end_time=to_attr,
+                duration=dur,
+                performer=performer,
+                description=description,
+                info=info,
+                image_url=image_url,
+                url=url,
+            )
+        except (KeyError, ValueError, AttributeError) as e:
+            raise RadikoApiXmlError(f"Program extraction failed: {e}") from e
 
 
 if __name__ == "__main__":
-    """Simple operational check for RadikoAPIClient."""
-    client = RadikoAPIClient()
+    """Simple operational check for RadikoApi."""
+    client = RadikoApi()
 
     # Authorize
     print("Authorizing...")
-    auth_result = client.authorize()
-    if auth_result is None:
-        print("Authorization failed")
-        exit(1)
-
-    auth_token, area_id = auth_result
-    print(f"Authorization successful. Area ID: {area_id}")
-    print()
-
-    # Fetch and display current program on TBS
-    print("Fetching current program on TBS...")
-    current_time = DT.now().strftime("%Y%m%d%H%M00")
-    program = client.fetch_today_program("TBS", current_time, area_id)
-
-    if program:
-        print(f"Title:       {program.title}")
-        print(f"Station:     {program.station}")
-        print(f"Start time:  {program.start_time}")
-        print(f"End time:    {program.end_time}")
-        if program.performer:
-            print(f"Performer:   {program.performer}")
-        if program.description:
-            print(f"Description: {program.description}")
-    else:
-        print("No program found")
+    try:
+        auth_result = client.authorize()
+        if auth_result is None:
+            print("Authorization failed")
+        else:
+            auth_token, area_id = auth_result
+            print(f"Authorization successful. Area ID: {area_id}")
+    except RadikoApiError as e:
+        print(f"Authorization error: {e}")
