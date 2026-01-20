@@ -1,95 +1,95 @@
-# NHKApi - NHK ラジオ聞き逃し配信 API クライアント
+# NHKApi - NHK Radio Ondemand API Client
 
-## 概要
+## Overview
 
-`NHKApi` は NHK ラジオの聞き逃し配信 API（radio-api/v1/web/ondemand）に対応した Python 3.12.3 用の API クライアントクラスです。
+`NHKApi` is a Python 3.12.3 API client class for the NHK Radio Ondemand API (radio-api/v1/web/ondemand).
 
-## インストール
+## Installation
 
-既存の `mypkg` パッケージに含まれます。
+Included in the existing `mypkg` package.
 
 ```python
 from mypkg.nhk_api import NHKApi, NHKApiError
 ```
 
-## 基本的な使用方法
+## Basic Usage
 
-### 初期化
+### Initialization
 
 ```python
-# デフォルトタイムアウト（10秒）
+# Default timeout (10 seconds)
 api = NHKApi()
 
-# カスタムタイムアウト
+# Custom timeout
 api = NHKApi(timeout=15)
 ```
 
-## メソッド
+## Methods
 
-### 1. `get_new_arrivals()` - 新着番組取得
+### 1. `get_new_arrivals()` - Get Latest Programs
 
-最新の聞き逃し配信番組を取得します。
+Retrieves the latest ondemand programs.
 
 ```python
 api = NHKApi()
 data = api.get_new_arrivals()
 ```
 
-**戻り値**: `Dict[str, Any]`
-- `corners`: 番組情報のリスト
+**Return Value**: `Dict[str, Any]`
+- `corners`: List of program information
 
-**例外**:
-- `NHKApiHttpError`: HTTP リクエストエラー
-- `NHKApiJsonError`: JSON パースエラー
+**Exceptions**:
+- `NHKApiHttpError`: HTTP request error
+- `NHKApiJsonError`: JSON parse error
 
-### 2. `get_corners_by_date(onair_date)` - 日付別番組取得
+### 2. `get_corners_by_date(onair_date)` - Get Programs by Date
 
-指定した日付の番組情報を取得します。
+Retrieves program information for a specified date.
 
 ```python
 api = NHKApi()
-data = api.get_corners_by_date("20260118")  # YYYYMMDD形式
+data = api.get_corners_by_date("20260118")  # YYYYMMDD format
 ```
 
-**パラメータ**:
-- `onair_date` (str): 放送日（YYYYMMDD形式）
+**Parameters**:
+- `onair_date` (str): Broadcast date (YYYYMMDD format)
 
-**戻り値**: `Dict[str, Any]`
-- `onair_date`: 指定した日付
-- `corners`: その日の番組情報のリスト
+**Return Value**: `Dict[str, Any]`
+- `onair_date`: Specified date
+- `corners`: Program information list for that date
 
-### 3. `get_series(site_id, corner_site_id)` - シリーズ情報取得
+### 3. `get_series(site_id, corner_site_id)` - Get Series Information
 
-番組シリーズの詳細情報とストリーミング URL を取得します。
+Retrieves detailed series information and streaming URLs.
 
 ```python
 api = NHKApi()
 data = api.get_series(site_id="47Q5W9WQK9", corner_site_id="01")
 ```
 
-**パラメータ**:
-- `site_id` (str): シリーズサイト ID
-- `corner_site_id` (str, オプション): コーナーサイト ID（デフォルト: "01"）
+**Parameters**:
+- `site_id` (str): Series site ID
+- `corner_site_id` (str, optional): Corner site ID (default: "01")
 
-**戻り値**: `Dict[str, Any]`
-- `id`: シリーズ ID
-- `title`: シリーズ名
-- `radio_broadcast`: 放送局（R1, R2, FM など）
-- `schedule`: 定期放送日時
-- `series_description`: シリーズ説明
-- `episodes`: エピソード情報のリスト
-  - `id`: エピソード ID
-  - `program_title`: 番組タイトル
-  - `onair_date`: 放送日時
-  - `closed_at`: 配信終了日時
-  - `stream_url`: M3U8 ストリーミング URL
-  - `program_sub_title`: 副題（DJ/ゲスト情報）
+**Return Value**: `Dict[str, Any]`
+- `id`: Series ID
+- `title`: Series name
+- `radio_broadcast`: Broadcast station (R1, R2, FM, etc.)
+- `schedule`: Regular broadcast date/time
+- `series_description`: Series description
+- `episodes`: List of episode information
+  - `id`: Episode ID
+  - `program_title`: Program title
+  - `onair_date`: Broadcast date/time
+  - `closed_at`: Delivery end date/time
+  - `stream_url`: M3U8 streaming URL
+  - `program_sub_title`: Subtitle (DJ/guest information)
 
-## ユーティリティメソッド
+## Utility Methods
 
 ### `extract_corners(data)`
 
-`get_new_arrivals()` または `get_corners_by_date()` のレスポンスから番組情報を抽出します。
+Extracts program information from the response of `get_new_arrivals()` or `get_corners_by_date()`.
 
 ```python
 corners = api.extract_corners(data)
@@ -97,11 +97,11 @@ for corner in corners:
     print(corner['title'])
 ```
 
-**戻り値**: `List[Dict[str, str]]`
+**Return Value**: `List[Dict[str, str]]`
 
 ### `extract_episodes(series_data)`
 
-`get_series()` のレスポンスからエピソード情報を抽出します。
+Extracts episode information from the response of `get_series()`.
 
 ```python
 episodes = api.extract_episodes(series_data)
@@ -110,11 +110,11 @@ for episode in episodes:
     print(episode['stream_url'])  # M3U8 URL
 ```
 
-**戻り値**: `List[Dict[str, str]]`
+**Return Value**: `List[Dict[str, str]]`
 
 ### `extract_recording_info(series_data)`
 
-`get_series()` のレスポンスから録音に必要な情報を抽出します。
+Extracts recording-necessary information from the response of `get_series()`.
 
 ```python
 recording_info = api.extract_recording_info(series_data)
@@ -123,30 +123,30 @@ for info in recording_info:
     program_title = info['program_title']
     stream_url = info['stream_url']
     closed_at = info['closed_at']
-    # 録音処理に使用
+    # Use for recording processing
 ```
 
-**戻り値**: `List[Dict[str, str]]`
-- `title`: シリーズ名
-- `program_title`: 番組タイトル
-- `onair_date`: 放送日時
-- `stream_url`: M3U8 ストリーミング URL
-- `closed_at`: 配信終了日時
+**Return Value**: `List[Dict[str, str]]`
+- `title`: Series name
+- `program_title`: Program title
+- `onair_date`: Broadcast date/time
+- `stream_url`: M3U8 streaming URL
+- `closed_at`: Delivery end date/time
 
-## 例外処理
+## Exception Handling
 
-### 例外クラス
+### Exception Classes
 
 ```python
 from mypkg.nhk_api import NHKApi, NHKApiError, NHKApiHttpError, NHKApiJsonError
 ```
 
-**継承関係**:
-- `NHKApiError` (基底例外)
-  - `NHKApiHttpError` (HTTP エラー)
-  - `NHKApiJsonError` (JSON パースエラー)
+**Inheritance Hierarchy**:
+- `NHKApiError` (base exception)
+  - `NHKApiHttpError` (HTTP error)
+  - `NHKApiJsonError` (JSON parse error)
 
-### エラーハンドリング例
+### Error Handling Example
 
 ```python
 api = NHKApi()
@@ -154,32 +154,32 @@ api = NHKApi()
 try:
     data = api.get_new_arrivals()
 except NHKApiHttpError as e:
-    print(f"ネットワークエラー: {e}")
+    print(f"Network error: {e}")
 except NHKApiJsonError as e:
-    print(f"API レスポンスエラー: {e}")
+    print(f"API response error: {e}")
 except NHKApiError as e:
-    print(f"その他の API エラー: {e}")
+    print(f"Other API error: {e}")
 ```
 
-## API 仕様
+## API Specification
 
-### ベース URL
+### Base URL
 
 ```
 https://www.nhk.or.jp/radio-api/v1/web/ondemand/
 ```
 
-### エンドポイント
+### Endpoints
 
 #### 1. `/new_arrivals`
 
-新着番組一覧を取得します。
+Retrieves the list of latest programs.
 
-**メソッド**: GET
+**Method**: GET
 
-**クエリパラメータ**: なし
+**Query Parameters**: None
 
-**レスポンス例**:
+**Response Example**:
 ```json
 {
   "corners": [
@@ -198,14 +198,14 @@ https://www.nhk.or.jp/radio-api/v1/web/ondemand/
 
 #### 2. `/corners?onair_date=YYYYMMDD`
 
-指定日付の番組一覧を取得します。
+Retrieves the program list for a specified date.
 
-**メソッド**: GET
+**Method**: GET
 
-**クエリパラメータ**:
-- `onair_date` (string): 放送日（YYYYMMDD形式）
+**Query Parameters**:
+- `onair_date` (string): Broadcast date (YYYYMMDD format)
 
-**レスポンス例**:
+**Response Example**:
 ```json
 {
   "onair_date": "20260118",
@@ -222,15 +222,15 @@ https://www.nhk.or.jp/radio-api/v1/web/ondemand/
 
 #### 3. `/series?site_id=XXX&corner_site_id=YYY`
 
-シリーズの詳細情報を取得します。
+Retrieves detailed series information.
 
-**メソッド**: GET
+**Method**: GET
 
-**クエリパラメータ**:
-- `site_id` (string): シリーズサイト ID
-- `corner_site_id` (string): コーナーサイト ID
+**Query Parameters**:
+- `site_id` (string): Series site ID
+- `corner_site_id` (string): Corner site ID
 
-**レスポンス例**:
+**Response Example**:
 ```json
 {
   "id": 76,
@@ -251,9 +251,9 @@ https://www.nhk.or.jp/radio-api/v1/web/ondemand/
 }
 ```
 
-## Program クラスとの連携
+## Integration with Program Class
 
-`extract_recording_info()` の戻り値は、`recorder_nhk.py` での使用に適した形式です：
+The return value of `extract_recording_info()` is formatted suitable for use in `recorder_nhk.py`:
 
 ```python
 from mypkg.nhk_api import NHKApi
@@ -263,35 +263,84 @@ series_data = api.get_series("47Q5W9WQK9", "01")
 recording_info = api.extract_recording_info(series_data)
 
 for info in recording_info:
-    # 必要な情報がすべて含まれています
-    - title: シリーズ名
-    - program_title: 番組タイトル
-    - onair_date: 放送日時
-    - stream_url: M3U8 URL（ffmpeg で利用可能）
-    - closed_at: 配信終了日時
+    # All necessary information is included
+    - title: Series name
+    - program_title: Program title
+    - onair_date: Broadcast date/time
+    - stream_url: M3U8 URL (usable with ffmpeg)
+    - closed_at: Delivery end date/time
 ```
 
-## ファイル構成
+## File Structure
 
 ```
 mypkg/
-├── nhk_api.py              # NHKApi クラス実装
-├── program.py              # Program データクラス
-├── radiko_api.py           # Radiko API クライアント
+├── nhk_api.py              # NHKApi class implementation
+├── program.py              # Program data class
+├── radiko_api.py           # Radiko API client
 └── ...
 
-nhk_api_examples.py         # 使用例
-test_nhk_api.py             # ユニットテスト
+nhk_api_examples.py         # Usage examples
+test_nhk_api.py             # Unit tests
 ```
 
-## Python バージョン
+## Python Version
 
 - Python 3.12.3
 
-## 依存パッケージ
+## Required Packages
 
-- `requests` - HTTP リクエスト処理
+- `requests` - HTTP request processing
 
-## ライセンス
+## License
 
-プロジェクトに準じます。
+As per project license.
+
+## Testing
+
+### Running Unit Tests
+
+The NHKApi class includes comprehensive unit tests covering:
+- Initialization with various timeout values
+- API method success and error cases
+- Response normalization
+- Utility method extraction
+- Exception hierarchy validation
+
+#### Run Tests with pytest
+
+```bash
+cd /path/to/rec-radio
+python -m pytest test/test_nhk_api.py -v
+```
+
+#### Run Tests with unittest
+
+```bash
+cd /path/to/rec-radio
+python -m unittest test.test_nhk_api -v
+```
+
+#### Run Specific Test Class
+
+```bash
+python -m pytest test/test_nhk_api.py::TestNHKApiNewArrivals -v
+```
+
+#### Run with Coverage
+
+```bash
+python -m pytest test/test_nhk_api.py --cov=mypkg.nhk_api --cov-report=html
+```
+
+### Test Results
+
+Expected output (22 tests):
+- TestNHKApiInitialization: 5 tests
+- TestNHKApiNewArrivals: 3 tests
+- TestNHKApiCornersByDate: 2 tests
+- TestNHKApiSeries: 2 tests
+- TestNHKApiExtraction: 6 tests
+- TestNHKApiExceptionHierarchy: 4 tests
+
+All tests should pass with `22 passed`.

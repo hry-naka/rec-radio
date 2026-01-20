@@ -1,14 +1,12 @@
-"""mypkg - Shared package for radio recording utilities."""
+"""mypkg - Radio recording utilities package."""
 
 from .nhk_api import NHKApi, NHKApiError, NHKApiHttpError, NHKApiJsonError
-from .program import Program
-from .radiko_api import RadikoAPIClient
+from .radiko_api import RadikoApi
 
 __all__ = [
-    "Program",
-    "RadikoAPIClient",
     "NHKApi",
     "NHKApiError",
     "NHKApiHttpError",
     "NHKApiJsonError",
+    "RadikoApi",
 ]

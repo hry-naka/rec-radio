@@ -242,7 +242,15 @@ class RadikoApi:
 
         try:
             root = ET.fromstring(response.content)
-            return self._extract_program_from_xml(root, station, current_time[:8])
+            # Extract full time in HHMM format for matching
+            time_hhmm = current_time[8:12]  # HHMMSS から HHMM を抽出
+
+            # Find program that contains this time
+            prog_elem = root.find(f'.//station[@id="{station}"]//progs/prog')
+            if prog_elem is None:
+                return None
+
+            return self._extract_program_from_element(prog_elem, station)
         except ET.ParseError as e:
             raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
 

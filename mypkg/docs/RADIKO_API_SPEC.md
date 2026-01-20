@@ -1,30 +1,30 @@
-# RadikoApi - Radiko ラジオストリーミング API クライアント
+# RadikoApi - Radiko Radio Streaming API Client
 
-## 概要
+## Overview
 
-`RadikoApi` は Radiko ラジオストリーミングサービスの API に対応した Python 3.12.3 用のステートレス API クライアントクラスです。認証、局情報取得、番組情報取得などの機能を提供します。
+`RadikoApi` is a stateless API client class for Python 3.12.3 that supports the Radiko radio streaming service API. It provides authentication, station information retrieval, and program information retrieval functions.
 
-## インストール
+## Installation
 
-既存の `mypkg` パッケージに含まれます。
+Included in the existing `mypkg` package.
 
 ```python
 from mypkg.radiko_api import RadikoApi, RadikoApiError, RadikoApiHttpError, RadikoApiXmlError
 ```
 
-## 基本的な使用方法
+## Basic Usage
 
-### 初期化
+### Initialization
 
 ```python
-# デフォルトタイムアウト（10秒）
+# Default timeout (10 seconds)
 api = RadikoApi()
 
-# カスタムタイムアウト
+# Custom timeout
 api = RadikoApi(timeout=15)
 ```
 
-### 認証
+### Authentication
 
 ```python
 api = RadikoApi()
@@ -32,61 +32,61 @@ try:
     auth_result = api.authorize()
     if auth_result:
         auth_token, area_id = auth_result
-        print(f"認可成功。エリアID: {area_id}")
+        print(f"Authorization successful. Area ID: {area_id}")
 except RadikoApiHttpError as e:
-    print(f"認可エラー: {e}")
+    print(f"Authorization error: {e}")
 ```
 
-## メソッド一覧
+## Methods
 
-### 初期化
+### Initialization
 
 #### `__init__(timeout=10)`
 
-RadikoApi クライアントを初期化します。
+Initializes a RadikoApi client.
 
-**パラメータ**:
-- `timeout` (int): リクエストのタイムアウト時間（秒）。デフォルト: 10
+**Parameters**:
+- `timeout` (int): Request timeout in seconds. Default: 10
 
-**例外**:
-- `ValueError`: タイムアウトが正数でない場合
+**Exceptions**:
+- `ValueError`: If timeout is not a positive number
 
-### 認証関連
+### Authentication
 
 #### `authorize()`
 
-Radiko の2段階認証を実行します。
+Executes Radiko's two-stage authentication.
 
-**戻り値**: `Tuple[str, str]` または `None`
-- 成功時: `(auth_token, area_id)` のタプル
-- 失敗時: `None`
+**Return Value**: `Tuple[str, str]` or `None`
+- Success: `(auth_token, area_id)` tuple
+- Failure: `None`
 
-**例外**:
-- `RadikoApiHttpError`: HTTP リクエストエラー
+**Exceptions**:
+- `RadikoApiHttpError`: HTTP request error
 
 ```python
 result = api.authorize()
 if result:
     auth_token, area_id = result
-    # トークンを使用してストリーム URL を取得
+    # Use token to get stream URL
     stream_url = api.get_stream_url(channel_id, auth_token)
 ```
 
-### 局情報取得
+### Station Information Retrieval
 
 #### `get_station_list(area_id="JP13")`
 
-指定したエリアの局一覧を取得します。
+Retrieves the station list for a specified area.
 
-**パラメータ**:
-- `area_id` (str): エリアID。デフォルト: "JP13"（関東地方）
+**Parameters**:
+- `area_id` (str): Area ID. Default: "JP13" (Kanto region)
 
-**戻り値**: `ET.Element` または `None`
-- XML ルート要素
+**Return Value**: `ET.Element` or `None`
+- XML root element
 
-**例外**:
-- `RadikoApiHttpError`: HTTP リクエストエラー
-- `RadikoApiXmlError`: XML パースエラー
+**Exceptions**:
+- `RadikoApiHttpError`: HTTP request error
+- `RadikoApiXmlError`: XML parse error
 
 ```python
 station_list = api.get_station_list("JP13")
@@ -97,16 +97,16 @@ if station_list is not None:
 
 #### `get_channel_list(area_id="JP13")`
 
-指定したエリアのチャンネル ID とチャンネル名のリストを取得します。
+Retrieves channel IDs and channel names for a specified area.
 
-**パラメータ**:
-- `area_id` (str): エリアID。デフォルト: "JP13"
+**Parameters**:
+- `area_id` (str): Area ID. Default: "JP13"
 
-**戻り値**: `Tuple[List[str], List[str]]`
+**Return Value**: `Tuple[List[str], List[str]]`
 - `(channel_ids, channel_names)`
 
-**例外**:
-- `RadikoApiError`: 局情報取得失敗
+**Exceptions**:
+- `RadikoApiError`: Station information retrieval failure
 
 ```python
 ids, names = api.get_channel_list("JP13")
@@ -116,62 +116,62 @@ for id, name in zip(ids, names):
 
 #### `is_station_available(station, area_id="JP13")`
 
-指定した局が指定したエリアで利用可能かどうかを確認します。
+Checks if a specified station is available in a specified area.
 
-**パラメータ**:
-- `station` (str): 局ID
-- `area_id` (str): エリアID。デフォルト: "JP13"
+**Parameters**:
+- `station` (str): Station ID
+- `area_id` (str): Area ID. Default: "JP13"
 
-**戻り値**: `bool`
-- 利用可能な場合: `True`
-- 利用不可の場合: `False`
+**Return Value**: `bool`
+- Available: `True`
+- Unavailable: `False`
 
-**例外**:
-- `RadikoApiError`: 局情報取得失敗
+**Exceptions**:
+- `RadikoApiError`: Station information retrieval failure
 
 ```python
 if api.is_station_available("TBS", "JP13"):
-    print("TBS は関東で利用可能")
+    print("TBS is available in Kanto")
 ```
 
-### 番組情報取得
+### Program Information Retrieval
 
 #### `fetch_now_program(station, area_id="JP13")`
 
-現在放送中の番組情報を取得します。
+Retrieves currently broadcasting program information.
 
-**パラメータ**:
-- `station` (str): 局ID
-- `area_id` (str): エリアID。デフォルト: "JP13"
+**Parameters**:
+- `station` (str): Station ID
+- `area_id` (str): Area ID. Default: "JP13"
 
-**戻り値**: `Program` または `None`
-- 番組情報オブジェクト
+**Return Value**: `Program` or `None`
+- Program information object
 
-**例外**:
-- `RadikoApiHttpError`: HTTP リクエストエラー
-- `RadikoApiXmlError`: XML パースエラー
+**Exceptions**:
+- `RadikoApiHttpError`: HTTP request error
+- `RadikoApiXmlError`: XML parse error
 
 ```python
 program = api.fetch_now_program("TBS")
 if program:
-    print(f"現在: {program.title}")
-    print(f"出演: {program.performer}")
+    print(f"Now: {program.title}")
+    print(f"Performer: {program.performer}")
 ```
 
 #### `fetch_today_program(station, current_time, area_id="JP13")`
 
-指定した時刻の番組情報を取得します。
+Retrieves program information for a specified time.
 
-**パラメータ**:
-- `station` (str): 局ID
-- `current_time` (str): 時刻（YYYYMMDDHHMMSS 形式）
-- `area_id` (str): エリアID。デフォルト: "JP13"
+**Parameters**:
+- `station` (str): Station ID
+- `current_time` (str): Time (YYYYMMDDHHMMSS format)
+- `area_id` (str): Area ID. Default: "JP13"
 
-**戻り値**: `Program` または `None`
+**Return Value**: `Program` or `None`
 
-**例外**:
-- `RadikoApiHttpError`: HTTP リクエストエラー
-- `RadikoApiXmlError`: XML パースエラー
+**Exceptions**:
+- `RadikoApiHttpError`: HTTP request error
+- `RadikoApiXmlError`: XML parse error
 
 ```python
 program = api.fetch_today_program("TBS", "20260120143000")
@@ -179,36 +179,36 @@ program = api.fetch_today_program("TBS", "20260120143000")
 
 #### `fetch_weekly_program(station)`
 
-週間番組表を取得します。
+Retrieves the weekly program guide.
 
-**パラメータ**:
-- `station` (str): 局ID
+**Parameters**:
+- `station` (str): Station ID
 
-**戻り値**: `Program` または `None`
+**Return Value**: `Program` or `None`
 
-**例外**:
-- `RadikoApiHttpError`: HTTP リクエストエラー
-- `RadikoApiXmlError`: XML パースエラー
+**Exceptions**:
+- `RadikoApiHttpError`: HTTP request error
+- `RadikoApiXmlError`: XML parse error
 
 ```python
 program = api.fetch_weekly_program("TBS")
 ```
 
-### ストリーム処理
+### Stream Processing
 
 #### `get_stream_url(channel, auth_token)`
 
-M3U8 ストリーム URL を取得します。
+Retrieves the M3U8 stream URL.
 
-**パラメータ**:
-- `channel` (str): チャンネルID
-- `auth_token` (str): 認可トークン
+**Parameters**:
+- `channel` (str): Channel ID
+- `auth_token` (str): Authorization token
 
-**戻り値**: `str` または `None`
-- ストリーム URL
+**Return Value**: `str` or `None`
+- Stream URL
 
-**例外**:
-- `RadikoApiHttpError`: HTTP リクエストエラー
+**Exceptions**:
+- `RadikoApiHttpError`: HTTP request error
 
 ```python
 auth_result = api.authorize()
@@ -216,54 +216,54 @@ if auth_result:
     auth_token, area_id = auth_result
     stream_url = api.get_stream_url("TBS", auth_token)
     if stream_url:
-        print(f"ストリーム URL: {stream_url}")
+        print(f"Stream URL: {stream_url}")
 ```
 
-### プログラム検索
+### Program Search
 
 #### `search_programs(keyword="", time_filter="past", area_id="JP13")`
 
-キーワードで番組を検索します。
+Searches for programs by keyword.
 
-**パラメータ**:
-- `keyword` (str): 検索キーワード。デフォルト: ""
-- `time_filter` (str): 時間フィルター。"past", "today", "future" から選択。デフォルト: "past"
-- `area_id` (str): エリアID。デフォルト: "JP13"
+**Parameters**:
+- `keyword` (str): Search keyword. Default: ""
+- `time_filter` (str): Time filter. Choose from "past", "today", "future". Default: "past"
+- `area_id` (str): Area ID. Default: "JP13"
 
-**戻り値**: `Dict[str, Any]`
-- 検索結果
+**Return Value**: `Dict[str, Any]`
+- Search results
 
-**例外**:
-- `RadikoApiHttpError`: HTTP リクエストエラー
-- `RadikoApiXmlError`: JSON パースエラー
+**Exceptions**:
+- `RadikoApiHttpError`: HTTP request error
+- `RadikoApiXmlError`: JSON parse error
 
 ```python
-results = api.search_programs(keyword="ニュース", time_filter="today")
+results = api.search_programs(keyword="News", time_filter="today")
 ```
 
-### ユーティリティ
+### Utility
 
 #### `dump()`
 
-API クライアントの状態を表示します（デバッグ用）。
+Displays the API client state (for debugging).
 
-RadikoApi はステートレスなため、このメソッドは設定情報のみを表示します。
+Since RadikoApi is stateless, this method displays only configuration information.
 
 ```python
-api.dump()  # 出力例: RadikoApi(timeout=10s)
+api.dump()  # Output example: RadikoApi(timeout=10s)
 ```
 
-## 例外処理
+## Exception Handling
 
-### 例外クラス階層
+### Exception Hierarchy
 
 ```
-RadikoApiError (基底例外)
-├── RadikoApiHttpError (HTTP/ネットワークエラー)
-└── RadikoApiXmlError (XML パースエラー)
+RadikoApiError (base exception)
+├── RadikoApiHttpError (HTTP/network error)
+└── RadikoApiXmlError (XML parse error)
 ```
 
-### エラーハンドリング例
+### Error Handling Example
 
 ```python
 from mypkg.radiko_api import RadikoApi, RadikoApiError, RadikoApiHttpError, RadikoApiXmlError
@@ -273,32 +273,32 @@ api = RadikoApi()
 try:
     program = api.fetch_now_program("TBS")
 except RadikoApiHttpError as e:
-    print(f"ネットワークエラー: {e}")
+    print(f"Network error: {e}")
 except RadikoApiXmlError as e:
-    print(f"XML パースエラー: {e}")
+    print(f"XML parse error: {e}")
 except RadikoApiError as e:
-    print(f"その他の API エラー: {e}")
+    print(f"Other API error: {e}")
 ```
 
-## Program クラス
+## Program Class
 
-各メソッドが返す `Program` オブジェクトの属性：
+Attributes of `Program` objects returned by each method:
 
-- `title` (str): 番組タイトル
-- `station` (str): 局ID
-- `area` (str): エリアID
-- `start_time` (str): 開始時刻
-- `end_time` (str): 終了時刻
-- `duration` (int): 放送時間（分）
-- `performer` (str): 出演者
-- `description` (str): 説明
-- `info` (str): 情報
-- `image_url` (str): 画像 URL
-- `url` (str): 番組ページ URL
+- `title` (str): Program title
+- `station` (str): Station ID
+- `area` (str): Area ID
+- `start_time` (str): Start time
+- `end_time` (str): End time
+- `duration` (int): Broadcast duration (minutes)
+- `performer` (str): Performers
+- `description` (str): Description
+- `info` (str): Information
+- `image_url` (str): Image URL
+- `url` (str): Program page URL
 
-## 定数
+## Constants
 
-### API エンドポイント
+### API Endpoints
 
 - `BASE_SEARCH_URL`: "https://radiko.jp/v3/api/program/search"
 - `BASE_STATION_URL`: "https://radiko.jp/v3/station/list/{}.xml"
@@ -307,71 +307,133 @@ except RadikoApiError as e:
 - `BASE_PROGRAM_DATE_URL`: "http://radiko.jp/v3/program/station/date/{}/{}.xml"
 - `BASE_STREAM_URL`: "https://f-radiko.smartstream.ne.jp/{}"
 
-### デフォルト値
+### Default Values
 
-- `DEFAULT_TIMEOUT`: 10 (秒)
-- `DEFAULT_AREA_ID`: "JP13" (関東地方)
+- `DEFAULT_TIMEOUT`: 10 (seconds)
+- `DEFAULT_AREA_ID`: "JP13" (Kanto region)
 
-## 使用例
+## Usage Example
 
-### 完全な実行例
+### Complete Execution Example
 
 ```python
 from mypkg.radiko_api import RadikoApi, RadikoApiError
 
-# API クライアントを初期化
+# Initialize API client
 api = RadikoApi(timeout=15)
 
 try:
-    # 1. 認可を取得
+    # 1. Get authorization
     auth_result = api.authorize()
     if not auth_result:
-        print("認可失敗")
+        print("Authorization failed")
         exit(1)
     
     auth_token, area_id = auth_result
-    print(f"認可成功。エリア: {area_id}")
+    print(f"Authorization successful. Area: {area_id}")
     
-    # 2. 利用可能な局を取得
+    # 2. Get available stations
     ids, names = api.get_channel_list(area_id)
-    print(f"利用可能な局: {list(zip(ids, names))}")
+    print(f"Available stations: {list(zip(ids, names))}")
     
-    # 3. 指定した局の現在の番組を取得
+    # 3. Get current program for specified station
     program = api.fetch_now_program("TBS")
     if program:
-        print(f"現在放送中: {program.title}")
-        print(f"出演: {program.performer}")
-        print(f"説明: {program.description}")
+        print(f"Now broadcasting: {program.title}")
+        print(f"Performer: {program.performer}")
+        print(f"Description: {program.description}")
     
-    # 4. ストリーム URL を取得
+    # 4. Get stream URL
     stream_url = api.get_stream_url("TBS", auth_token)
     if stream_url:
-        print(f"ストリーム URL: {stream_url}")
+        print(f"Stream URL: {stream_url}")
     
-    # 5. 番組を検索
-    results = api.search_programs(keyword="ニュース", time_filter="today")
-    print(f"検索結果: {results}")
+    # 5. Search programs
+    results = api.search_programs(keyword="News", time_filter="today")
+    print(f"Search results: {results}")
 
 except RadikoApiError as e:
-    print(f"エラー: {e}")
+    print(f"Error: {e}")
 ```
 
-## ステートレス設計
+## Stateless Design
 
-`RadikoApi` はステートレス設計です。各メソッドは独立しており、内部状態を保持しません。これにより：
+`RadikoApi` uses a stateless design. Each method is independent and maintains no internal state. This provides:
 
-- 複数のスレッドから安全に使用可能
-- メモリ効率が良い
-- テストが容易
+- Thread-safe usage
+- Efficient memory usage
+- Easy testing
 
-## Python バージョン
+## Python Version
 
 - Python 3.12.3
 
-## 依存パッケージ
+## Required Packages
 
-- `requests` - HTTP リクエスト処理
+- `requests` - HTTP request processing
 
-## ライセンス
+## License
 
-プロジェクトに準じます。
+As per project license.
+
+## Testing
+
+### Running Unit Tests
+
+The RadikoApi class includes comprehensive unit tests covering:
+- Initialization with various timeout values
+- Authorization and token handling
+- Station list retrieval and filtering
+- Program information acquisition
+- Stream URL extraction
+- Program search functionality
+- Exception handling and error cases
+
+#### Run Tests with pytest
+
+```bash
+cd /path/to/rec-radio
+python -m pytest test/test_radiko_api.py -v
+```
+
+#### Run Tests with unittest
+
+```bash
+cd /path/to/rec-radio
+python -m unittest test.test_radiko_api -v
+```
+
+#### Run Specific Test Class
+
+```bash
+python -m pytest test/test_radiko_api.py::TestRadikoApiAuthorization -v
+```
+
+#### Run with Coverage
+
+```bash
+python -m pytest test/test_radiko_api.py --cov=mypkg.radiko_api --cov-report=html
+```
+
+### Test Results
+
+Expected output (25 tests):
+- TestRadikoApiInitialization: 4 tests
+- TestRadikoApiAuthorization: 3 tests
+- TestRadikoApiStationMethods: 6 tests
+- TestRadikoApiProgramMethods: 4 tests
+- TestRadikoApiStreamMethods: 4 tests
+- TestRadikoApiSearchMethods: 2 tests
+- TestRadikoApiExceptionHierarchy: 2 tests
+
+All tests should pass with `25 passed`.
+
+### Running All Tests
+
+Run both NHK and Radiko API tests:
+
+```bash
+python -m pytest test/test_nhk_api.py test/test_radiko_api.py -v
+```
+
+Expected total: 47 tests
