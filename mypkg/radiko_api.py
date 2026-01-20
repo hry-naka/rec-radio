@@ -203,6 +203,7 @@ class RadikoApi:
             title=title,
             station=station,
             area="JP13",  # Default, could be parameterized
+            source="radiko",
             start_time=ft_attr,
             end_time=to_attr,
             duration=dur,
@@ -515,6 +516,7 @@ class RadikoApi:
                 title=title,
                 station=station,
                 area="JP13",
+                source="radiko",
                 start_time=ft_attr,
                 end_time=to_attr,
                 duration=dur,

@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python -m unittest discover -s test -p 'test\\*\\.py' 2>&1 \\| grep -E '\\(Ran\\|OK\\|FAIL\\)'$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

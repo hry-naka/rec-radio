@@ -16,11 +16,11 @@ def example_1_basic_initialization():
     print("=" * 60)
     print("Example 1: Basic Initialization")
     print("=" * 60)
-    
+
     # Default 10 second timeout
     api = NHKApi()
     api.dump()
-    
+
     # Custom timeout
     api = NHKApi(timeout=15)
     api.dump()
@@ -31,7 +31,7 @@ def example_2_get_new_arrivals():
     print("\n" + "=" * 60)
     print("Example 2: Get New Arrivals")
     print("=" * 60)
-    
+
     api = NHKApi()
 
     try:
@@ -43,7 +43,7 @@ def example_2_get_new_arrivals():
         corners = api.extract_corners(data)
 
         print(f"✓ Found {len(corners)} new programs")
-        
+
         # Process first 5
         for corner in corners[:5]:
             print(f"\n  - {corner['title']}")
@@ -62,7 +62,7 @@ def example_3_get_corners_by_date():
     print("\n" + "=" * 60)
     print("Example 3: Get Programs by Date")
     print("=" * 60)
-    
+
     api = NHKApi()
 
     try:
@@ -80,7 +80,7 @@ def example_3_get_corners_by_date():
         fm_programs = [p for p in programs if "FM" in p["radio_broadcast"]]
         r1_programs = [p for p in programs if "R1" in p["radio_broadcast"]]
         r2_programs = [p for p in programs if "R2" in p["radio_broadcast"]]
-        
+
         print(f"  FM programs: {len(fm_programs)}")
         print(f"  R1 programs: {len(r1_programs)}")
         print(f"  R2 programs: {len(r2_programs)}")
@@ -94,7 +94,7 @@ def example_4_get_series_with_episodes():
     print("\n" + "=" * 60)
     print("Example 4: Get Series with Episodes")
     print("=" * 60)
-    
+
     api = NHKApi()
 
     try:
@@ -105,7 +105,7 @@ def example_4_get_series_with_episodes():
         print(f"✓ Series: {series_data['title']}")
         print(f"  Broadcast: {series_data['radio_broadcast']}")
         print(f"  Schedule: {series_data['schedule']}")
-        
+
         # Extract episodes
         episodes = api.extract_episodes(series_data)
         print(f"  Episodes: {len(episodes)}")
@@ -115,7 +115,7 @@ def example_4_get_series_with_episodes():
             print(f"    Title: {episode['program_title']}")
             print(f"    Air Date: {episode['onair_date']}")
             print(f"    Closed At: {episode['closed_at']}")
-            if episode.get('stream_url'):
+            if episode.get("stream_url"):
                 print(f"    Stream: {episode['stream_url'][:50]}...")
 
     except NHKApiError as e:
@@ -127,7 +127,7 @@ def example_5_extract_recording_info():
     print("\n" + "=" * 60)
     print("Example 5: Extract Recording Information")
     print("=" * 60)
-    
+
     api = NHKApi()
 
     try:
@@ -139,14 +139,18 @@ def example_5_extract_recording_info():
         recording_info = api.extract_recording_info(series_data)
 
         print(f"✓ Recording info for {len(recording_info)} episodes")
-        
+
         for i, info in enumerate(recording_info[:2], 1):
             print(f"\n  Record {i}:")
             print(f"    Series: {info['title']}")
             print(f"    Program: {info['program_title']}")
             print(f"    Air Date: {info['onair_date']}")
             print(f"    Closed At: {info['closed_at']}")
-            print(f"    Stream URL: {info['stream_url'][:50]}..." if info.get('stream_url') else "    Stream URL: N/A")
+            print(
+                f"    Stream URL: {info['stream_url'][:50]}..."
+                if info.get("stream_url")
+                else "    Stream URL: N/A"
+            )
 
     except NHKApiError as e:
         print(f"✗ API error: {e}")
@@ -164,7 +168,7 @@ def example_6_error_handling():
         api = NHKApi(timeout=-1)
     except ValueError as e:
         print(f"✓ Caught ValueError: {e}")
-    
+
     # Test 2: Invalid data extraction
     print("\nTest 2: Invalid data extraction")
     api = NHKApi()
@@ -181,7 +185,7 @@ def example_7_complete_workflow():
     print("\n" + "=" * 60)
     print("Example 7: Complete Workflow")
     print("=" * 60)
-    
+
     api = NHKApi()
 
     try:
@@ -189,30 +193,35 @@ def example_7_complete_workflow():
         new_arrivals = api.get_new_arrivals()
         corners = api.extract_corners(new_arrivals)
         print(f"   ✓ Found {len(corners)} programs")
-        
+
         print("\n2. Finding target series...")
         # Find first FM program with series_site_id
         target = next((c for c in corners if c.get("series_site_id")), None)
-        
+
         if target:
-            print(f"   ✓ Target: {target['title']} (Series ID: {target['series_site_id']})")
-            
+            print(
+                f"   ✓ Target: {target['title']} (Series ID: {target['series_site_id']})"
+            )
+
             print("\n3. Fetching series details...")
             series_data = api.get_series(
-                target['series_site_id'],
-                target.get('corner_site_id', '01')
+                target["series_site_id"], target.get("corner_site_id", "01")
             )
             print(f"   ✓ Series: {series_data['title']}")
-            
+
             print("\n4. Extracting recording information...")
             recording_info = api.extract_recording_info(series_data)
             print(f"   ✓ Ready to record {len(recording_info)} episodes")
-            
+
             if recording_info:
                 first = recording_info[0]
                 print(f"\n   Sample recording:")
                 print(f"   - {first['title']} / {first['program_title']}")
-                print(f"   - Stream: {first['stream_url'][:50]}..." if first.get('stream_url') else "   - Stream: N/A")
+                print(
+                    f"   - Stream: {first['stream_url'][:50]}..."
+                    if first.get("stream_url")
+                    else "   - Stream: N/A"
+                )
                 print(f"   - Valid until: {first['closed_at']}")
         else:
             print("   ⚠ No programs found")
@@ -232,17 +241,17 @@ def main():
     print("\n" + "=" * 70)
     print("NHK Radio Ondemand API - Usage Examples")
     print("=" * 70)
-    
+
     # Basic examples (always work)
     example_1_basic_initialization()
     example_6_error_handling()
-    
+
     # Network-dependent examples
     print("\n" + "=" * 70)
     print("Network-Dependent Examples")
     print("=" * 70)
     print("Note: The following examples require internet connectivity.\n")
-    
+
     try:
         example_2_get_new_arrivals()
         example_3_get_corners_by_date()
@@ -251,7 +260,7 @@ def main():
         example_7_complete_workflow()
     except Exception as e:
         print(f"\n⚠ Skipping network examples due to: {type(e).__name__}: {e}")
-    
+
     print("\n" + "=" * 70)
     print("All examples completed!")
     print("=" * 70 + "\n")
@@ -259,4 +268,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
