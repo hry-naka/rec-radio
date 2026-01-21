@@ -529,6 +529,123 @@ class RadikoApi:
         except (KeyError, ValueError, AttributeError) as e:
             raise RadikoApiXmlError(f"Program extraction failed: {e}") from e
 
+    def get_programs(
+        self,
+        area_id: str = DEFAULT_AREA_ID,
+        station: Optional[str] = None,
+    ) -> List[Program]:
+        """Fetch programs for specified station(s) in the area.
+
+        Args:
+            area_id: Area ID (e.g., "JP13"). Defaults to DEFAULT_AREA_ID.
+            station: Optional station ID. If None, fetch from all stations in area.
+
+        Returns:
+            List of Program objects with source="radiko"
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+            RadikoApiXmlError: If XML parsing fails.
+
+        Examples:
+            >>> api = RadikoApi()
+            >>> # Get all programs in area
+            >>> programs = api.get_programs("JP13")
+            >>> # Get programs from specific station
+            >>> programs = api.get_programs("JP13", "TBS")
+        """
+        try:
+            if station:
+                # Fetch program from specific station
+                return self._fetch_station_programs(area_id, station)
+            else:
+                # Fetch programs from all stations in area
+                return self._fetch_all_stations_programs(area_id)
+        except (RadikoApiHttpError, RadikoApiXmlError) as e:
+            raise RadikoApiError(f"Failed to get programs: {e}") from e
+
+    def _fetch_station_programs(
+        self,
+        area_id: str,
+        station: str,
+    ) -> List[Program]:
+        """Fetch programs from a specific station.
+
+        Args:
+            area_id: Area ID
+            station: Station ID
+
+        Returns:
+            List of Program objects
+
+        Raises:
+            RadikoApiHttpError: If HTTP request fails.
+            RadikoApiXmlError: If XML parsing fails.
+        """
+        from datetime import datetime
+
+        today = datetime.now().strftime("%Y%m%d")
+        url = self.BASE_PROGRAM_DATE_URL.format(today, station)
+
+        try:
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise RadikoApiHttpError(f"HTTP request failed: {e}") from e
+
+        try:
+            root = ET.fromstring(response.content)
+            programs = []
+
+            # Extract all programs for this station
+            for prog_elem in root.findall(f'.//station[@id="{station}"]/progs/prog'):
+                prog = self._extract_program_from_element(prog_elem, station)
+                if prog:
+                    prog.area = area_id
+                    programs.append(prog)
+
+            return programs
+        except ET.ParseError as e:
+            raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
+
+    def _fetch_all_stations_programs(
+        self,
+        area_id: str,
+    ) -> List[Program]:
+        """Fetch programs from all stations in the area.
+
+        Args:
+            area_id: Area ID
+
+        Returns:
+            List of Program objects from all stations
+
+        Raises:
+            RadikoApiError: If program fetching fails.
+        """
+        all_programs = []
+
+        try:
+            # Get list of available stations
+            channel_ids, _ = self.get_channel_list(area_id)
+
+            if not channel_ids:
+                return []
+
+            # Fetch programs from each station
+            for station_id in channel_ids:
+                try:
+                    station_programs = self._fetch_station_programs(area_id, station_id)
+                    all_programs.extend(station_programs)
+                except RadikoApiError as e:
+                    # Log warning but continue with other stations
+                    print(f"Warning: Failed to fetch programs for {station_id}: {e}")
+                    continue
+
+            return all_programs
+        except RadikoApiError as e:
+            raise RadikoApiError(f"Failed to fetch all station programs: {e}") from e
+
 
 if __name__ == "__main__":
     """Simple operational check for RadikoApi."""

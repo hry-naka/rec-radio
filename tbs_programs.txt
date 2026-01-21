@@ -1,0 +1,165 @@
+Searching RADIKO programs...
+Area: JP13
+Station: TBS
+
+[1]
+Title : 大島由香里 BRAND-NEW MORNING
+Source : radiko
+Start : 2026-01-21 05:00
+End   : 2026-01-21 06:30
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121050000 -to 20260121063000
+
+[2]
+Title : 森本毅郎・スタンバイ！
+Source : radiko
+Start : 2026-01-21 06:30
+End   : 2026-01-21 08:30
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121063000 -to 20260121083000
+
+[3]
+Title : パンサー向井の#ふらっと (1)
+Source : radiko
+Start : 2026-01-21 08:30
+End   : 2026-01-21 10:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121083000 -to 20260121100000
+
+[4]
+Title : パンサー向井の#ふらっと (2)
+Source : radiko
+Start : 2026-01-21 10:00
+End   : 2026-01-21 11:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121100000 -to 20260121110000
+
+[5]
+Title : ジェーン・スー 生活は踊る (1)
+Source : radiko
+Start : 2026-01-21 11:00
+End   : 2026-01-21 12:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121110000 -to 20260121120000
+
+[6]
+Title : ジェーン・スー 生活は踊る (2)
+Source : radiko
+Start : 2026-01-21 12:00
+End   : 2026-01-21 13:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121120000 -to 20260121130000
+
+[7]
+Title : ジェーン・スー 生活は踊る (3)
+Source : radiko
+Start : 2026-01-21 13:00
+End   : 2026-01-21 14:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121130000 -to 20260121140000
+
+[8]
+Title : こねくと (1)
+Source : radiko
+Start : 2026-01-21 14:00
+End   : 2026-01-21 15:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121140000 -to 20260121150000
+
+[9]
+Title : こねくと (2)
+Source : radiko
+Start : 2026-01-21 15:00
+End   : 2026-01-21 16:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121150000 -to 20260121160000
+
+[10]
+Title : こねくと (3)
+Source : radiko
+Start : 2026-01-21 16:00
+End   : 2026-01-21 16:50
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121160000 -to 20260121165000
+
+[11]
+Title : あかさか得得ショッピング
+Source : radiko
+Start : 2026-01-21 16:50
+End   : 2026-01-21 17:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121165000 -to 20260121170000
+
+[12]
+Title : 荻上チキ・Session (1)
+Source : radiko
+Start : 2026-01-21 17:00
+End   : 2026-01-21 18:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121170000 -to 20260121180000
+
+[13]
+Title : 荻上チキ・Session (2)
+Source : radiko
+Start : 2026-01-21 18:00
+End   : 2026-01-21 19:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121180000 -to 20260121190000
+
+[14]
+Title : 荻上チキ・Session (3)
+Source : radiko
+Start : 2026-01-21 19:00
+End   : 2026-01-21 20:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121190000 -to 20260121200000
+
+[15]
+Title : アフター６ジャンクション２ (1)
+Source : radiko
+Start : 2026-01-21 20:00
+End   : 2026-01-21 21:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121200000 -to 20260121210000
+
+[16]
+Title : アフター６ジャンクション２ (2)
+Source : radiko
+Start : 2026-01-21 21:00
+End   : 2026-01-21 22:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121210000 -to 20260121220000
+
+[17]
+Title : 佐倉綾音 論理×ロンリー
+Source : radiko
+Start : 2026-01-21 22:00
+End   : 2026-01-21 22:55
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121220000 -to 20260121225500
+
+[18]
+Title : ふわっち presents らじおっつ
+Source : radiko
+Start : 2026-01-21 22:55
+End   : 2026-01-21 23:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121225500 -to 20260121230000
+
+[19]
+Title : イモトアヤコのすっぴんしゃん
+Source : radiko
+Start : 2026-01-21 23:00
+End   : 2026-01-21 23:30
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121230000 -to 20260121233000
+
+[20]
+Title : きしたかののブタピエロ
+Source : radiko
+Start : 2026-01-21 23:30
+End   : 2026-01-22 00:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260121233000 -to 20260122000000
+
+[21]
+Title : スタンド・バイ・見取り図
+Source : radiko
+Start : 2026-01-22 00:00
+End   : 2026-01-22 01:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260122000000 -to 20260122010000
+
+[22]
+Title : JUNK 山里亮太の不毛な議論
+Source : radiko
+Start : 2026-01-22 01:00
+End   : 2026-01-22 03:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260122010000 -to 20260122030000
+
+[23]
+Title : CITY CHILL CLUB
+Source : radiko
+Start : 2026-01-22 03:00
+End   : 2026-01-22 05:00
+Cmd   : tfrec_radiko.py -s TBS -ft 20260122030000 -to 20260122050000
+

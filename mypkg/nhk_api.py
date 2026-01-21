@@ -1,66 +1,58 @@
-"""NHK Radio Ondemand API client module.
+"""NHK on-demand radio API client.
 
-This module provides a stateless API client for interacting with the NHK
-radio streaming ondemand service. It handles program retrieval and stream
-URL acquisition.
-
-The API returns structured data optimized for use with Program and recording
-pipeline components.
-
-Attributes:
-    BASE_URL (str): Base URL for NHK API endpoints.
-    DEFAULT_TIMEOUT (int): Default timeout for API requests in seconds.
+This module provides access to NHK's on-demand radio program archive API
+(radiru.nhk.jp), allowing retrieval of program information, episodes, and
+recording metadata.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 import requests
 
+from .program import Program
+
+
+# ============================================================================
+# Exception Classes
+# ============================================================================
+
 
 class NHKApiError(Exception):
-    """Base exception for NHK API errors."""
+    """Base exception for NHK API operations."""
 
     pass
 
 
 class NHKApiHttpError(NHKApiError):
-    """Exception raised for HTTP/network errors."""
+    """Exception raised when HTTP request to NHK API fails."""
 
     pass
 
 
 class NHKApiJsonError(NHKApiError):
-    """Exception raised for JSON parsing errors."""
+    """Exception raised when JSON parsing from NHK API fails."""
 
     pass
 
 
+# ============================================================================
+# NHK API Client
+# ============================================================================
+
+
 class NHKApi:
-    """Stateless client for NHK Radio Ondemand API interactions.
+    """NHK on-demand radio API client."""
 
-    This class provides methods for retrieving program information, episode
-    details, and streaming URLs from the NHK radio ondemand API.
-
-    All methods return structured dictionaries optimized for downstream
-    consumers like recorder_nhk.py and find_radio.py.
-
-    Attributes:
-        BASE_URL (str): Base URL for NHK API endpoints.
-        BASE_NEW_ARRIVALS_URL (str): URL for new arrivals endpoint.
-        BASE_CORNERS_URL (str): URL pattern for corners by date endpoint.
-        BASE_SERIES_URL (str): URL pattern for series endpoint.
-        DEFAULT_TIMEOUT (int): Default timeout in seconds.
-    """
-
-    # API endpoints
-    BASE_URL = "https://www.nhk.or.jp/radioondemand/json"
-    BASE_NEW_ARRIVALS_URL = "https://www.nhk.or.jp/radioondemand/json/new_arrivals.json"
+    # API endpoints - Correct URLs for actual NHK API
+    BASE_URL = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand"
+    BASE_NEW_ARRIVALS_URL = (
+        "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/corners/new_arrivals"
+    )
     BASE_CORNERS_URL = (
-        "https://www.nhk.or.jp/radioondemand/json/corners-{onair_date}.json"
+        "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/corners?date={date}"
     )
-    BASE_SERIES_URL = (
-        "https://www.nhk.or.jp/radioondemand/json/{site_id}-{corner_site_id}.json"
-    )
+    BASE_SERIES_URL = "https://www.nhk.or.jp/radio-api/app/v1/web/ondemand/series?site_id={site_id}&corner_site_id={corner_site_id}"
 
     DEFAULT_TIMEOUT = 10
 
@@ -81,23 +73,7 @@ class NHKApi:
         """Fetch newly arrived programs with structured data.
 
         Returns:
-            Dictionary with structured corner information:
-            {
-                "onair_date": str,  # Date when fetched
-                "corners": [
-                    {
-                        "id": int,
-                        "title": str,
-                        "radio_broadcast": str,  # R1, R2, FM
-                        "series_site_id": str,
-                        "corner_site_id": str,
-                        "onair_date": str,
-                        "started_at": str,  # ISO format timestamp
-                        "thumbnail_url": str,
-                    },
-                    ...
-                ]
-            }
+            Dictionary with structured corner information
 
         Raises:
             NHKApiHttpError: If HTTP request fails.
@@ -106,40 +82,28 @@ class NHKApi:
         data = self._fetch_json(self.BASE_NEW_ARRIVALS_URL)
         return self._normalize_corners_response(data)
 
-    def get_corners_by_date(self, onair_date: str) -> Dict[str, Any]:
+    def get_corners_by_date(self, date: str) -> Dict[str, Any]:
         """Fetch programs for a specific date with structured data.
 
         Args:
-            onair_date: Date in YYYYMMDD format (e.g., "20260118").
+            date: Date in YYYYMMDD format (e.g., "20260118").
 
         Returns:
-            Dictionary with structured corner information:
-            {
-                "onair_date": str,  # The requested date
-                "corners": [
-                    {
-                        "id": int,
-                        "title": str,
-                        "radio_broadcast": str,
-                        "series_site_id": str,
-                        "corner_site_id": str,
-                        "onair_date": str,
-                        "started_at": str,
-                        "thumbnail_url": str,
-                    },
-                    ...
-                ]
-            }
+            Dictionary with structured corner information
 
         Raises:
             NHKApiHttpError: If HTTP request fails.
             NHKApiJsonError: If response JSON parsing fails.
         """
-        url = self.BASE_CORNERS_URL.format(onair_date=onair_date)
+        url = self.BASE_CORNERS_URL.format(date=date)
         data = self._fetch_json(url)
         return self._normalize_corners_response(data)
 
-    def get_series(self, site_id: str, corner_site_id: str = "01") -> Dict[str, Any]:
+    def get_series(
+        self,
+        site_id: str,
+        corner_site_id: str = "01",
+    ) -> Dict[str, Any]:
         """Fetch series information with episode details and stream URLs.
 
         Args:
@@ -147,37 +111,203 @@ class NHKApi:
             corner_site_id: Corner site ID. Defaults to "01".
 
         Returns:
-            Dictionary with structured series information:
-            {
-                "id": int,
-                "title": str,
-                "radio_broadcast": str,
-                "schedule": str,
-                "series_description": str,
-                "series_site_id": str,
-                "corner_site_id": str,
-                "episodes": [
-                    {
-                        "id": int,
-                        "program_title": str,
-                        "onair_date": str,
-                        "closed_at": str,
-                        "stream_url": str,  # M3U8 URL for ffmpeg
-                        "program_sub_title": str,  # DJ/guest info
-                    },
-                    ...
-                ]
-            }
+            Dictionary with structured series information
 
         Raises:
             NHKApiHttpError: If HTTP request fails.
             NHKApiJsonError: If response JSON parsing fails.
         """
         url = self.BASE_SERIES_URL.format(
-            site_id=site_id, corner_site_id=corner_site_id
+            site_id=site_id,
+            corner_site_id=corner_site_id,
         )
         data = self._fetch_json(url)
         return self._normalize_series_response(data, site_id, corner_site_id)
+
+    def get_programs(self) -> List[Program]:
+        """Fetch NHK on-demand programs (new arrivals only).
+
+        Returns only title information from new arrivals for fast filtering.
+
+        Returns:
+            List of Program objects with basic information from new arrivals
+        """
+        try:
+            programs = []
+
+            # Get new arrivals
+            arrivals_data = self.get_new_arrivals()
+
+            if not arrivals_data:
+                return []
+
+            # Extract corners from arrivals - title only for fast filtering
+            corners = self.extract_corners(arrivals_data)
+
+            # Convert each corner to Program instance with basic info only
+            for corner in corners:
+                try:
+                    title = corner.get("title", "")
+                    description = corner.get("description", "")
+                    site_id = corner.get("site_id", "")
+
+                    if not title:
+                        continue
+
+                    # Create Program with basic info (no detailed episodes yet)
+                    program = Program(
+                        title=title,
+                        station="NHK",
+                        start_time="",
+                        end_time="",
+                        source="nhk",
+                        description=description,
+                        performer=corner.get("main_name", ""),
+                        series_site_id=site_id,
+                        corner_site_id=corner.get("corner_site_id", "01"),
+                    )
+
+                    programs.append(program)
+
+                except Exception:
+                    continue
+
+            return programs
+
+        except Exception as e:
+            raise NHKApiError(f"Failed to get programs: {e}") from e
+
+    def enrich_program_details(self, program: Program) -> Program:
+        """Fetch detailed episode information for a matched NHK program.
+
+        This method should only be called for programs that matched the keyword
+        search to minimize API calls.
+
+        Args:
+            program: Program instance with series_site_id and corner_site_id set
+
+        Returns:
+            Program instance with detailed episode information
+        """
+        try:
+            site_id = program.series_site_id
+            corner_site_id = program.corner_site_id or "01"
+
+            if not site_id:
+                return program
+
+            # Fetch detailed series data
+            series_data = self.get_series(site_id, corner_site_id)
+            episodes = self.extract_episodes(series_data)
+
+            # Get the most recent episode
+            if episodes:
+                episode = episodes[0]
+                program = self._convert_episode_to_program(
+                    episode,
+                    {
+                        "title": program.title,
+                        "description": program.description,
+                        "main_name": program.performer,
+                        "site_id": site_id,
+                        "corner_site_id": corner_site_id,
+                    },
+                )
+
+            return program
+
+        except Exception:
+            return program
+
+    def _convert_episode_to_program(
+        self,
+        episode: Dict[str, Any],
+        corner: Dict[str, Any],
+    ) -> Optional[Program]:
+        """Convert NHK episode data to Program instance.
+
+        Args:
+            episode: Episode data from API
+            corner: Corner data from API
+
+        Returns:
+            Program instance or None if conversion fails
+        """
+        try:
+            # Extract essential information
+            title = corner.get("title", "")
+            subtitle = episode.get("subtitle", "")
+            description = corner.get("description", "") or episode.get(
+                "description", ""
+            )
+
+            # Combine title with subtitle if available
+            full_title = f"{title}：{subtitle}" if subtitle else title
+
+            # Parse broadcast date and time - support multiple formats
+            onair_date = episode.get("onair_date", "")
+            start_time = ""
+            end_time = ""
+
+            if onair_date:
+                # Try multiple date formats
+                date_formats = [
+                    "%Y%m%d%H%M%S",  # 20260118000000
+                    "%Y%m%d",  # 20260118
+                    "%Y-%m-%d %H:%M",  # 2026-01-18 09:50
+                    "%Y-%m-%d",  # 2026-01-18
+                ]
+
+                parsed_date = None
+                for fmt in date_formats:
+                    try:
+                        parsed_date = datetime.strptime(onair_date, fmt)
+                        break
+                    except ValueError:
+                        continue
+
+                if parsed_date:
+                    # Store in YYYYMMDD format for command generation
+                    start_time = parsed_date.strftime("%Y%m%d")
+                    end_time = parsed_date.strftime("%Y%m%d")
+                else:
+                    # If parsing fails, extract date part if format is like "1月18日(日)..."
+                    import re
+
+                    date_match = re.search(r"(\d+)月(\d+)日", onair_date)
+                    if date_match:
+                        month = date_match.group(1)
+                        day = date_match.group(2)
+                        # Assume current year
+                        year = datetime.now().year
+                        # Store in YYYYMMDD format for consistency
+                        start_time = f"{year}{month.zfill(2)}{day.zfill(2)}"
+                        end_time = f"{year}{month.zfill(2)}{day.zfill(2)}"
+
+            # Create Program instance
+            program = Program(
+                title=full_title,
+                station="NHK",
+                start_time=start_time,
+                end_time=end_time,
+                source="nhk",
+                description=description,
+                info=episode.get("content_id", ""),
+                performer=corner.get("main_name", ""),
+                series_site_id=corner.get("site_id", ""),  # ← 追加
+                corner_site_id=corner.get("corner_site_id", "01"),  # ← 追加
+            )
+
+            # Add NHK-specific attributes
+            program.episode_id = episode.get("episode_id", "")
+            program.series_id = corner.get("site_id", "")
+            program.content_id = episode.get("content_id", "")
+            program.file_name = episode.get("file_name", "")
+
+            return program
+
+        except Exception as e:
+            return None
 
     def _fetch_json(self, url: str) -> Dict[str, Any]:
         """Fetch and parse JSON from API endpoint.
@@ -204,20 +334,8 @@ class NHKApi:
             raise NHKApiJsonError(f"JSON parsing failed: {e}") from e
 
     def _normalize_corners_response(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize corners API response to structured format.
+        """Normalize corners API response to structured format."""
 
-        Extracts essential fields from raw corners data and ensures
-        consistent structure across new_arrivals and get_corners_by_date.
-
-        Args:
-            raw_data: Raw API response dictionary.
-
-        Returns:
-            Normalized dictionary with corners list.
-
-        Raises:
-            NHKApiJsonError: If required fields are missing.
-        """
         try:
             corners_raw = raw_data.get("corners", [])
             normalized_corners = []
@@ -227,7 +345,9 @@ class NHKApi:
                     "id": corner.get("id"),
                     "title": corner.get("title", ""),
                     "radio_broadcast": corner.get("radio_broadcast", ""),
-                    "series_site_id": corner.get("series_site_id", ""),
+                    "site_id": corner.get(
+                        "series_site_id", ""
+                    ),  # ← "series_site_id" を使用
                     "corner_site_id": corner.get("corner_site_id", ""),
                     "onair_date": corner.get("onair_date", ""),
                     "started_at": corner.get("started_at", ""),

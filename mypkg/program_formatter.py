@@ -299,3 +299,67 @@ class ProgramFormatter:
             lines.append("Status: Not recordable (no stream URL)")
 
         return "\n".join(lines)
+
+    @staticmethod
+    def format_list(programs: list) -> str:
+        """Format a list of programs for display.
+
+        Generates a numbered list with program details and recording commands.
+
+        Args:
+            programs: List of Program instances
+
+        Returns:
+            Formatted list string
+
+        Example:
+            >>> programs = [program1, program2]
+            >>> output = ProgramFormatter.format_list(programs)
+        """
+        if not programs:
+            return "No programs found."
+
+        lines = []
+        for idx, program in enumerate(programs, start=1):
+            lines.append(f"[{idx}]")
+            lines.append(f"Title : {program.title}")
+
+            # Format source with broadcast info for NHK
+            if program.is_nhk():
+                lines.append("Source : NHK (らじる★らじる)")
+            else:
+                lines.append("Source : radiko")
+
+            # Add start/end times
+            try:
+                start_dt = program.get_start_datetime()
+                end_dt = program.get_end_datetime()
+
+                if program.is_nhk():
+                    # For NHK with YYYYMMDD format, show full date range
+                    start_str = start_dt.strftime("%Y-%m-%d 00:00")
+                    end_str = end_dt.strftime("%Y-%m-%d 23:59")
+                else:
+                    # For Radiko with YYYYMMDDHHMMSS format, show exact times
+                    start_str = start_dt.strftime("%Y-%m-%d %H:%M")
+                    end_str = end_dt.strftime("%Y-%m-%d %H:%M")
+            except (ValueError, AttributeError):
+                start_str = program.start_time
+                end_str = program.end_time
+
+            lines.append(f"Start : {start_str}")
+            lines.append(f"End   : {end_str}")
+
+            # Add recording command
+            if program.is_nhk():
+                # For NHK: tfrec_nhk.py --id <series_site_id> --date <date> --title <title>
+                date_str = program.start_time[:8]
+                cmd = f'tfrec_nhk.py --id {program.series_site_id} --date {date_str} --title "{program.title}"'
+            else:
+                # For Radiko: tfrec_radiko.py -s <station> -ft <from_time> -to <to_time>
+                cmd = f"tfrec_radiko.py -s {program.station} -ft {program.start_time} -to {program.end_time}"
+
+            lines.append(f"Cmd   : {cmd}")
+            lines.append("")  # Blank line between entries
+
+        return "\n".join(lines)

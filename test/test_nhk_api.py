@@ -208,7 +208,9 @@ class TestNHKApiSeries(unittest.TestCase):
         # Verify the URL was called with default "01"
         mock_get.assert_called_once()
         called_url = mock_get.call_args[0][0]
-        self.assertIn("47Q5W9WQK9-01", called_url)
+        # Check that the URL contains both site_id and corner_site_id parameters
+        self.assertIn("site_id=47Q5W9WQK9", called_url)
+        self.assertIn("corner_site_id=01", called_url)
 
 
 class TestNHKApiExtraction(unittest.TestCase):

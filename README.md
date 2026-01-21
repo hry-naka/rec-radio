@@ -125,3 +125,34 @@ usage: python3 record_radio.py <station> <prefix> [-c]
 
 crontab.example を参照
 
+## 検索機能
+
+### キーワード検索
+
+```bash
+python ./find_radio.py --service nhk --keyword "ジャズ"
+python ./find_radio.py --service radiko --keyword "ジャズ"
+```
+
+正規表現をサポートしています：
+
+```bash
+# 複数キーワード検索
+python ./find_radio.py --service nhk --keyword "(jazz|ジャズ)"
+
+# パターン検索
+python ./find_radio.py --service radiko --keyword "^朝"
+```
+
+### 検索対象フィールド
+
+| サービス | 検索対象 | 理由 |
+|---------|--------|------|
+| **NHK** | `title` のみ | 新着番組リストには詳細情報が含まれていないため、title のみで高速フィルタリングを実施。マッチした番組についてのみ詳細情報を取得 |
+| **Radiko** | `title`、`description`、`info`、`performer` | 全プログラム情報が available なため、複数フィールドで詳細検索をサポート |
+
+### パフォーマンス
+
+- NHK: ~1 秒（新着番組を title で高速フィルタリング）
+- Radiko: ~1 秒（全プログラムを複数フィールドで検索）
+

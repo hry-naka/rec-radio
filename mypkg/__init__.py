@@ -1,22 +1,34 @@
-"""mypkg - Radio recording utilities package."""
+"""rec-radio package."""
 
+# NHK API (exceptions defined in nhk_api.py)
 from .nhk_api import NHKApi, NHKApiError, NHKApiHttpError, NHKApiJsonError
-from .radiko_api import RadikoApi
-from .recorder_common import RecorderCommon
-from .recorder_radiko import RecorderRadiko
-from .recorder_nhk import RecorderNHK
+
+# Radiko API (exceptions defined in radiko_api.py)
+from .radiko_api import RadikoApi, RadikoApiError, RadikoApiHttpError, RadikoApiXmlError
+
+# Core classes
 from .program import Program
 from .program_formatter import ProgramFormatter
 
+# Recorders
+from .recorder_nhk import RecorderNHK
+from .recorder_radiko import RecorderRadiko
+
 __all__ = [
+    # NHK API
     "NHKApi",
     "NHKApiError",
     "NHKApiHttpError",
     "NHKApiJsonError",
+    # Radiko API
     "RadikoApi",
-    "RecorderCommon",
-    "RecorderRadiko",
-    "RecorderNHK",
+    "RadikoApiError",
+    "RadikoApiHttpError",
+    "RadikoApiXmlError",
+    # Core
     "Program",
     "ProgramFormatter",
+    # Recorders
+    "RecorderNHK",
+    "RecorderRadiko",
 ]

@@ -89,26 +89,72 @@ class Program:
         return self.duration * 60
 
     def get_start_datetime(self) -> datetime:
-        """Parse start time as datetime object.
+        """Get start time as datetime object.
+
+        Supports multiple datetime formats used by different services.
 
         Returns:
-            Parsed datetime object
+            datetime object
 
         Raises:
-            ValueError: If time format is invalid
+            ValueError: If start_time format is not supported
         """
-        return datetime.strptime(self.start_time, "%Y%m%d%H%M%S")
+        if not self.start_time:
+            raise ValueError("start_time is not set")
+
+        # Try multiple datetime formats
+        formats = [
+            "%Y%m%d%H%M%S",  # 20260118000000 (Radiko format)
+            "%Y%m%d",  # 20260118 (NHK format)
+            "%Y-%m-%d %H:%M",  # 2026-01-18 00:00
+            "%Y-%m-%d %H:%M:%S",  # 2026-01-18 00:00:00
+            "%Y-%m-%d",  # 2026-01-18
+        ]
+
+        for fmt in formats:
+            try:
+                return datetime.strptime(self.start_time, fmt)
+            except ValueError:
+                continue
+
+        # If no format matched, raise error
+        raise ValueError(
+            f"start_time '{self.start_time}' does not match any supported format"
+        )
 
     def get_end_datetime(self) -> datetime:
-        """Parse end time as datetime object.
+        """Get end time as datetime object.
+
+        Supports multiple datetime formats used by different services.
 
         Returns:
-            Parsed datetime object
+            datetime object
 
         Raises:
-            ValueError: If time format is invalid
+            ValueError: If end_time format is not supported
         """
-        return datetime.strptime(self.end_time, "%Y%m%d%H%M%S")
+        if not self.end_time:
+            raise ValueError("end_time is not set")
+
+        # Try multiple datetime formats
+        formats = [
+            "%Y%m%d%H%M%S",  # 20260118235959 (Radiko format)
+            "%Y%m%d",  # 20260118 (NHK format)
+            "%Y-%m-%d %H:%M",  # 2026-01-18 23:59
+            "%Y-%m-%d %H:%M:%S",  # 2026-01-18 23:59:59
+            "%Y-%m-%d",  # 2026-01-18
+        ]
+
+        for fmt in formats:
+            try:
+                return datetime.strptime(self.end_time, fmt)
+            except ValueError:
+                continue
+
+        # If no format matched, raise error
+        raise ValueError(
+            f"end_time '{self.end_time}' does not match any supported format"
+        )
 
     def is_nhk(self) -> bool:
         """Check if program is from NHK API.
