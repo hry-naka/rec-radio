@@ -1,17 +1,12 @@
-"""Deprecated: Audio recording module.
+"""Common recording utilities shared between Radiko and NHK recorders.
 
-This module is deprecated. Please use the source-specific recorders instead:
-- recorder_radiko.py: For Radiko radio streams
-- recorder_nhk.py: For NHK radio streams
-
-Legacy Recorder class is maintained for backward compatibility only.
-New code should use RecorderRadiko or RecorderNHK directly.
+This module provides shared functionality for audio recording, metadata management,
+and ffmpeg command construction that is used by both RecorderRadiko and RecorderNHK.
 """
 
 import shlex
 import shutil
 import subprocess
-import sys
 from typing import Optional
 
 import requests
@@ -21,17 +16,11 @@ from .program import Program
 from .program_formatter import ProgramFormatter
 
 
-class Recorder:
-    """Handle audio recording and metadata management for MP4 files.
-
-    DEPRECATED: Use RecorderRadiko or RecorderNHK instead.
-
-    This class is maintained for backward compatibility with existing code
-    that uses rec_radiko.py and other legacy scripts.
-    """
+class RecorderCommon:
+    """Common recorder utilities for audio recording and metadata management."""
 
     def __init__(self, loglevel: str = "warning"):
-        """Initialize recorder with ffmpeg configuration.
+        """Initialize common recorder with ffmpeg configuration.
 
         Args:
             loglevel: ffmpeg loglevel (warning, error, info, etc.)
@@ -50,17 +39,17 @@ class Recorder:
     def record_stream(
         self,
         stream_url: str,
-        auth_token: str,
         output_file: str,
         duration: int,
+        headers: Optional[dict] = None,
     ) -> bool:
-        """Record audio from Radiko stream using ffmpeg.
+        """Record audio from stream using ffmpeg.
 
         Args:
             stream_url: M3U8 stream URL
-            auth_token: Radiko authentication token
             output_file: Output MP4 file path
             duration: Recording duration in seconds
+            headers: Optional HTTP headers to include (e.g., auth tokens)
 
         Returns:
             True if recording succeeded, False otherwise
@@ -69,23 +58,48 @@ class Recorder:
             print("Error: ffmpeg must be installed and available in PATH")
             return False
 
-        # Build ffmpeg command with reconnection and auth headers
-        cmd = (
-            f"{self.ffmpeg_path} -loglevel {self.loglevel} -y "
-            "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
-            "-reconnect_delay_max 600 "
-            '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36" '
-            f'-headers "X-Radiko-AuthToken: {auth_token}\r\n" '
-            f'-i "{stream_url}" '
-            f"-t {duration} -acodec copy {output_file}"
+        # Build ffmpeg command with reconnection options
+        cmd_parts = [
+            self.ffmpeg_path,
+            "-loglevel",
+            self.loglevel,
+            "-y",
+            "-reconnect",
+            "1",
+            "-reconnect_at_eof",
+            "0",
+            "-reconnect_streamed",
+            "1",
+            "-reconnect_delay_max",
+            "600",
+            "-user_agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36",
+        ]
+
+        # Add custom headers if provided
+        if headers:
+            header_str = "\r\n".join(f"{k}: {v}" for k, v in headers.items())
+            cmd_parts.extend(["-headers", header_str])
+
+        cmd_parts.extend(
+            [
+                "-i",
+                stream_url,
+                "-t",
+                str(duration),
+                "-acodec",
+                "copy",
+                output_file,
+            ]
         )
 
+        cmd = " ".join(shlex.quote(part) for part in cmd_parts)
         print(f"Recording command: {cmd}", flush=True)
 
         try:
             result = subprocess.run(
-                shlex.split(cmd),
+                cmd_parts,
                 capture_output=True,
                 text=True,
                 check=True,
@@ -164,6 +178,6 @@ class Recorder:
 
             audio.save()
             return True
-        except Exception as e:
+        except (OSError, ValueError, AttributeError) as e:
             print(f"Error setting metadata: {e}")
             return False
