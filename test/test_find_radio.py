@@ -146,13 +146,13 @@ class TestRadikoSearch(unittest.TestCase):  # ← unittest.TestCase を継承
         self.assertTrue(all(isinstance(p, Program) for p in programs))
 
     def test_radiko_api_get_programs_with_invalid_station(self):
-        """Test Radiko API with invalid station raises exception."""
+        """Test Radiko API with invalid station returns empty list."""
         api = RadikoApi()
-        from mypkg.radiko_api import RadikoApiError
 
-        # Invalid station should raise RadikoApiError
-        with self.assertRaises(RadikoApiError):
-            api.get_programs("JP13", "INVALID")
+        # Invalid station should return empty list (not raise exception)
+        # because _fetch_station_programs now logs warnings and continues
+        programs = api.get_programs("JP13", "INVALID")
+        self.assertEqual(len(programs), 0)
 
 
 class TestNHKSearch(unittest.TestCase):  # ← unittest.TestCase を継承

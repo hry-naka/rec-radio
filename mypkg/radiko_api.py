@@ -569,44 +569,73 @@ class RadikoApi:
         area_id: str,
         station: str,
     ) -> List[Program]:
-        """Fetch programs from a specific station.
+        """Fetch programs from a specific station for the past 7 days.
+
+        Radiko's time-free service allows listening to programs from the past week,
+        so this method fetches the last 7 days of program schedules.
 
         Args:
             area_id: Area ID
             station: Station ID
 
         Returns:
-            List of Program objects
+            List of Program objects from the past 7 days
 
         Raises:
             RadikoApiHttpError: If HTTP request fails.
             RadikoApiXmlError: If XML parsing fails.
         """
-        from datetime import datetime
+        from datetime import datetime, timedelta
 
-        today = datetime.now().strftime("%Y%m%d")
-        url = self.BASE_PROGRAM_DATE_URL.format(today, station)
+        programs = []
+        now = datetime.now()
 
-        try:
-            response = requests.get(url, timeout=self.timeout)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise RadikoApiHttpError(f"HTTP request failed: {e}") from e
+        # Fetch programs for the past 7 days (Radiko time-free availability period)
+        for days_ago in range(7):
+            target_date = now - timedelta(days=days_ago)
+            date_str = target_date.strftime("%Y%m%d")
+            url = self.BASE_PROGRAM_DATE_URL.format(date_str, station)
 
-        try:
-            root = ET.fromstring(response.content)
-            programs = []
+            try:
+                response = requests.get(url, timeout=self.timeout)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                # Log warning but continue with other days
+                print(
+                    f"Warning: Failed to fetch programs for {station} on {date_str}: {e}",
+                    file=sys.stderr,
+                )
+                continue
 
-            # Extract all programs for this station
-            for prog_elem in root.findall(f'.//station[@id="{station}"]/progs/prog'):
-                prog = self._extract_program_from_element(prog_elem, station)
-                if prog:
-                    prog.area = area_id
-                    programs.append(prog)
+            try:
+                root = ET.fromstring(response.content)
 
-            return programs
-        except ET.ParseError as e:
-            raise RadikoApiXmlError(f"XML parsing failed: {e}") from e
+                # Extract all programs for this station on this date
+                for prog_elem in root.findall(
+                    f'.//station[@id="{station}"]/progs/prog'
+                ):
+                    prog = self._extract_program_from_element(prog_elem, station)
+                    if prog:
+                        prog.area = area_id
+                        # Only include programs that have already aired (past programs)
+                        try:
+                            prog_end_time = datetime.strptime(
+                                prog.end_time, "%Y%m%d%H%M%S"
+                            )
+                            if prog_end_time <= now:
+                                programs.append(prog)
+                        except ValueError:
+                            # If time parsing fails, include the program anyway
+                            programs.append(prog)
+
+            except ET.ParseError as e:
+                print(
+                    f"Warning: XML parsing failed for {station} on {date_str}: {e}",
+                    file=sys.stderr,
+                )
+                continue
+
+        return programs
 
     def _fetch_all_stations_programs(
         self,
