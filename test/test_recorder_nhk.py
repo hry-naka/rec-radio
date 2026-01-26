@@ -228,5 +228,78 @@ class TestRecorderNHKDuration(unittest.TestCase):
         self.assertGreater(duration, 0)
 
 
+class TestRecorderNHKFFmpegCommand(unittest.TestCase):
+    """Test cases for ffmpeg command generation."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.recorder = RecorderNHK()
+
+        self.program = Program(
+            title="ラジオ文芸館",
+            station="NHK",
+            start_time="20260120230000",
+            end_time="20260120232400",
+            source="nhk",
+            stream_url="https://example.com/nhk_stream.m3u8",
+        )
+
+    def test_get_ffmpeg_command_basic(self):
+        """Test basic ffmpeg command generation for NHK."""
+        output_file = "/tmp/test_recording.mp4"
+        cmd = self.recorder.get_ffmpeg_command(
+            self.program,
+            output_file,
+        )
+
+        # Verify command contains essential elements
+        self.assertIn("ffmpeg", cmd)
+        self.assertIn("-i", cmd)
+        self.assertIn("https://example.com/nhk_stream.m3u8", cmd)
+        self.assertIn("-t", cmd)
+        self.assertIn("1440", cmd)  # 24 minutes = 1440 seconds
+        self.assertIn("-acodec", cmd)
+        self.assertIn("copy", cmd)
+        self.assertIn(output_file, cmd)
+
+    def test_ffmpeg_options_loaded_from_env(self):
+        """Test that ffmpeg options are loaded from .env."""
+        # Verify ffmpeg_opts is populated
+        self.assertIsNotNone(self.recorder.ffmpeg_opts)
+        self.assertIsInstance(self.recorder.ffmpeg_opts, list)
+
+        # Should contain reconnection options from .env
+        opts_str = " ".join(self.recorder.ffmpeg_opts)
+        self.assertIn("-reconnect", opts_str)
+
+
+class TestRecorderNHKRecord(unittest.TestCase):
+    """Test cases for unified record() method."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.mock_api = MagicMock()
+        self.recorder = RecorderNHK(nhk_api=self.mock_api)
+
+        self.program = Program(
+            title="ラジオ文芸館",
+            station="NHK",
+            start_time="20260120230000",
+            end_time="20260120232400",
+            source="nhk",
+            stream_url="https://example.com/nhk_stream.m3u8",
+        )
+
+    @patch("mypkg.recorder_nhk.RecorderNHK.record_program")
+    def test_record_method_calls_record_program(self, mock_record_program):
+        """Test that record() method calls record_program."""
+        mock_record_program.return_value = True
+
+        success = self.recorder.record(self.program)
+
+        self.assertTrue(success)
+        mock_record_program.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

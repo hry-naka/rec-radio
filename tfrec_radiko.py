@@ -101,119 +101,10 @@ def generate_output_filename(
     return f"{station}_{date_str}.mp4"
 
 
-def get_stream_url_for_timefree(
-    api: RadikoApi,
-    station: str,
-    start_time: str,
-    end_time: str,
-) -> Optional[Tuple[str, str]]:
-    """Get time-free stream URL and auth token from Radiko API.
-
-    Args:
-        api: RadikoApi instance
-        station: Station ID
-        start_time: Start time in yyyymmddhhmmss format
-        end_time: End time in yyyymmddhhmmss format
-
-    Returns:
-        Tuple of (stream_url, auth_token) or None if failed.
-
-    Raises:
-        Exception: If authorization or stream URL retrieval fails.
-    """
-    # Authorize and get token
-    auth_result = api.authorize()
-    if auth_result is None:
-        raise RuntimeError("Authorization failed")
-
-    auth_token, area_id = auth_result
-
-    # Build time-free stream URL
-    # Format: https://radiko.jp/v2/api/ts/playlist.m3u8?station_id=<station>&l=15&ft=<from>&to=<to>
-    stream_url = (
-        f"https://radiko.jp/v2/api/ts/playlist.m3u8?"
-        f"station_id={station}&l=15&ft={start_time}&to={end_time}"
-    )
-
-    return (stream_url, auth_token)
-
-
-def record_with_ffmpeg(
-    stream_url: str,
-    output_file: str,
-    duration_seconds: int,
-    auth_token: Optional[str] = None,
-) -> bool:
-    """Record stream using ffmpeg.
-
-    Args:
-        stream_url: M3U8 stream URL
-        output_file: Output file path
-        duration_seconds: Recording duration in seconds
-        auth_token: Optional authentication token for Radiko time-free
-
-    Returns:
-        True if recording succeeded, False otherwise.
-    """
-    # Determine ffmpeg path
-    if os.path.exists("/usr/local/bin/ffmpeg"):
-        ffmpeg_cmd = "/usr/local/bin/ffmpeg"
-    elif os.path.exists("/usr/bin/ffmpeg"):
-        ffmpeg_cmd = "/usr/bin/ffmpeg"
-    else:
-        ffmpeg_cmd = "ffmpeg"
-
-    cmd = [
-        ffmpeg_cmd,
-        "-loglevel",
-        "error",
-    ]
-
-    # Add authentication headers if token is provided
-    if auth_token:
-        cmd.extend(
-            [
-                "-headers",
-                f"X-Radiko-AuthToken: {auth_token}",
-            ]
-        )
-
-    cmd.extend(
-        [
-            "-i",
-            stream_url,
-            "-t",
-            str(duration_seconds),
-            "-acodec",
-            "copy",
-            "-vn",
-            output_file,
-        ]
-    )
-
-    # Print ffmpeg command
-    print(f"ffmpeg command: {' '.join(cmd)}")
-
-    try:
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True,
-        )
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"ffmpeg error: {e.stderr.decode('utf-8')}", file=sys.stderr)
-        return False
-    except FileNotFoundError:
-        print(f"Error: ffmpeg not found at {ffmpeg_cmd}", file=sys.stderr)
-        return False
-
-
 def record_program(program: Program) -> bool:
     """Record a time-free Radiko program using Program instance.
 
-    This function is designed for future integration with recorder_radiko.py.
+    This function is designed for integration with recorder_radiko.py.
 
     Args:
         program: Program instance with station, start_time, and end_time.
@@ -238,55 +129,51 @@ def record_program(program: Program) -> bool:
 
     # Load environment
     load_dotenv()
-    area_id = os.getenv("RADIKO_AREA_ID", "JP13")
 
-    # Initialize API
+    # Initialize API and Recorder
     api = RadikoApi()
+    recorder = RecorderRadiko()
 
-    # Get stream URL and auth token
+    # Get auth token and stream URL for time-free
     try:
-        result = get_stream_url_for_timefree(
-            api,
+        auth_result = api.authorize()
+        if auth_result is None:
+            print("Error: Radiko authorization failed")
+            return False
+
+        auth_token, area_id = auth_result
+        print(f"Authorization successful. Area ID: {area_id}")
+
+        # Build time-free stream URL
+        stream_url = (
+            f"https://radiko.jp/v2/api/ts/playlist.m3u8?"
+            f"station_id={program.station}&l=15&ft={program.start_time}&to={program.end_time}"
+        )
+
+        # Set stream URL in program
+        program.stream_url = stream_url
+
+        # Generate output filename
+        output_file = generate_output_filename(
             program.station,
             program.start_time,
             program.end_time,
         )
-        if not result:
-            print("Error: Failed to get stream URL", file=sys.stderr)
-            return False
-        stream_url, auth_token = result
+
+        # Use recorder's record_program method
+        print(f"Recording to: {output_file}")
+        success = recorder.record_program(program, auth_token, output_file)
+
+        if success:
+            print(f"Recording completed successfully: {output_file}")
+        else:
+            print("Recording failed")
+
+        return success
+
     except Exception as e:
-        print(f"Error getting stream URL: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         return False
-
-    # Generate output filename
-    output_file = generate_output_filename(
-        program.station,
-        program.start_time,
-        program.end_time,
-    )
-
-    # Calculate duration
-    try:
-        start_dt = datetime.strptime(program.start_time, "%Y%m%d%H%M%S")
-        end_dt = datetime.strptime(program.end_time, "%Y%m%d%H%M%S")
-        duration_seconds = int((end_dt - start_dt).total_seconds())
-    except ValueError as e:
-        print(f"Error calculating duration: {e}", file=sys.stderr)
-        return False
-
-    # Record
-    print(f"Recording {program.station}: {program.title}")
-    print(f"Output: {output_file}")
-
-    success = record_with_ffmpeg(stream_url, output_file, duration_seconds, auth_token)
-
-    if success:
-        print(f"Successfully recorded: {output_file}")
-    else:
-        print("Recording failed", file=sys.stderr)
-
-    return success
 
 
 def main() -> None:
@@ -319,91 +206,51 @@ def main() -> None:
 
     # Load environment
     load_dotenv()
-    area_id = os.getenv("RADIKO_AREA_ID", "JP13")
 
-    # Initialize API
+    # Initialize API to fetch program information
     api = RadikoApi()
 
-    # Check station availability
+    # Try to fetch detailed program information
+    print(f"Fetching program information for {station}...")
     try:
-        if not api.is_station_available(station, area_id):
-            print(
-                f"Error: Station '{station}' is not available in area {area_id}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-    except Exception as e:
-        print(f"Warning: Could not verify station availability: {e}", file=sys.stderr)
-
-    # Fetch program information
-    try:
-        program = api.fetch_today_program(station, start_time, area_id)
-        if program is None:
-            print("Warning: Program information not available")
-            program_info = "(Unknown)"
-        else:
+        # Fetch program information for the specified time
+        program = api.fetch_today_program(station, start_time)
+        
+        if program is not None:
             program_info = ProgramFormatter.get_log_string(program)
-        print(f"Program: {program_info}")
+            print(f"Program: {program_info}")
+            
+            # Update program times to match user-specified range
+            # (User may want to record a portion of the program)
+            program.start_time = start_time
+            program.end_time = end_time
+        else:
+            print("Warning: Program information not available, using minimal metadata")
+            # Create Program with minimal information if API fetch fails
+            program = Program(
+                title=f"{station} Timefree Recording",
+                station=station,
+                start_time=start_time,
+                end_time=end_time,
+                source="radiko",
+            )
     except Exception as e:
-        print(f"Warning: Could not fetch program info: {e}", file=sys.stderr)
-        program = None
-        program_info = "(Unknown)"
-
-    # Get stream URL and auth token
-    try:
-        result = get_stream_url_for_timefree(
-            api,
-            station,
-            start_time,
-            end_time,
+        print(f"Warning: Could not fetch program info: {e}")
+        # Fallback to minimal Program instance
+        program = Program(
+            title=f"{station} Timefree Recording",
+            station=station,
+            start_time=start_time,
+            end_time=end_time,
+            source="radiko",
         )
-        if not result:
-            print("Error: Failed to get stream URL", file=sys.stderr)
-            sys.exit(1)
-        stream_url, auth_token = result
-    except Exception as e:
-        print(f"Error getting stream URL: {e}", file=sys.stderr)
-        sys.exit(1)
 
-    print(f"Stream URL: {stream_url}")
-
-    # Generate output filename
-    output_file = generate_output_filename(station, start_time, end_time)
-
-    # Calculate duration
-    try:
-        start_dt = datetime.strptime(start_time, "%Y%m%d%H%M%S")
-        end_dt = datetime.strptime(end_time, "%Y%m%d%H%M%S")
-        duration_seconds = int((end_dt - start_dt).total_seconds())
-    except ValueError as e:
-        print(f"Error calculating duration: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Record
-    print(f"Recording {station} from {start_time} to {end_time}")
-    print(f"Output: {output_file}")
-    print(f"Duration: {duration_seconds} seconds")
-
-    success = record_with_ffmpeg(stream_url, output_file, duration_seconds, auth_token)
+    # Record program
+    success = record_program(program)
 
     if success:
-        print(f"Recording completed successfully")
-
-        # Set metadata if program information is available
-        if program is not None:
-            try:
-                recorder = RecorderRadiko()
-                recorder.set_metadata(output_file, program)
-                print("Metadata set successfully")
-            except Exception as e:
-                print(f"Warning: Failed to set metadata: {e}", file=sys.stderr)
-        else:
-            print("Skipping metadata (program info not available)")
-
-        print(f"Output file: {output_file}")
         sys.exit(0)
     else:
-        print("Recording failed", file=sys.stderr)
         sys.exit(1)
 
 

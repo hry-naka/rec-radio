@@ -8,9 +8,13 @@ This module provides utility functions for formatting program data for:
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from .program import Program
+
+if TYPE_CHECKING:
+    from .recorder_nhk import RecorderNHK
+    from .recorder_radiko import RecorderRadiko
 
 
 class ProgramFormatter:
@@ -301,13 +305,21 @@ class ProgramFormatter:
         return "\n".join(lines)
 
     @staticmethod
-    def format_list(programs: list) -> str:
+    def format_list(
+        programs: list,
+        recorder_radiko: Optional["RecorderRadiko"] = None,
+        recorder_nhk: Optional["RecorderNHK"] = None,
+    ) -> str:
         """Format a list of programs for display.
 
         Generates a numbered list with program details and recording commands.
+        If recorders are provided, uses their get_ffmpeg_command() to generate
+        Cmd output that matches the actual recording implementation.
 
         Args:
             programs: List of Program instances
+            recorder_radiko: Optional RecorderRadiko instance for command generation
+            recorder_nhk: Optional RecorderNHK instance for command generation
 
         Returns:
             Formatted list string
