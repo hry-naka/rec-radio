@@ -29,22 +29,26 @@ def get_args() -> argparse.Namespace:
         description="Search for radio programs in NHK or Radiko services."
     )
     parser.add_argument(
+        "-s",
         "--service",
         required=True,
         choices=["radiko", "nhk"],
         help="Radio service to search (radiko or nhk)",
     )
     parser.add_argument(
+        "-st",
         "--station",
         default=None,
         help="Station ID (e.g., TBS, INT for Radiko; optional)",
     )
     parser.add_argument(
+        "-a",
         "--area",
         default=None,
         help="Area ID (e.g., JP13 for Tokyo; optional)",
     )
     parser.add_argument(
+        "-k",
         "--keyword",
         default=None,
         help="Keyword to search for (supports regex pattern)",
