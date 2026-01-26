@@ -335,5 +335,41 @@ class TestRecorderRadikoRecord(unittest.TestCase):
         mock_record_program.assert_not_called()
 
 
+class TestRecorderRadikoBuildCmd(unittest.TestCase):
+    """Test cases for build_ffmpeg_cmd() method."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.recorder = RecorderRadiko()
+
+        self.program = Program(
+            title="Test Program",
+            station="TBS",
+            start_time="20260120133000",
+            end_time="20260120135500",
+            source="radiko",
+        )
+
+    def test_build_ffmpeg_cmd_format(self):
+        """Test that build_ffmpeg_cmd generates correct tfrec_radiko.py format."""
+        cmd = self.recorder.build_ffmpeg_cmd(self.program)
+
+        # Verify command format
+        self.assertIn("tfrec_radiko.py", cmd)
+        self.assertIn("-s", cmd)
+        self.assertIn("TBS", cmd)
+        self.assertIn("-ft", cmd)
+        self.assertIn("20260120133000", cmd)
+        self.assertIn("-to", cmd)
+        self.assertIn("20260120135500", cmd)
+
+    def test_build_ffmpeg_cmd_matches_tfrec_format(self):
+        """Test that command matches exact tfrec_radiko.py format."""
+        cmd = self.recorder.build_ffmpeg_cmd(self.program)
+        expected = "tfrec_radiko.py -s TBS -ft 20260120133000 -to 20260120135500"
+
+        self.assertEqual(cmd, expected)
+
+
 if __name__ == "__main__":
     unittest.main()

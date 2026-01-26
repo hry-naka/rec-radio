@@ -19,6 +19,8 @@ from mypkg.nhk_api import NHKApi
 from mypkg.program import Program
 from mypkg.program_formatter import ProgramFormatter
 from mypkg.radiko_api import RadikoApi
+from mypkg.recorder_nhk import RecorderNHK
+from mypkg.recorder_radiko import RecorderRadiko
 
 
 def get_args() -> argparse.Namespace:
@@ -166,8 +168,16 @@ def main() -> None:
             print("No programs matched the keyword.")
             sys.exit(0)
 
-        # Display results
-        output = ProgramFormatter.format_list(programs)
+        # Initialize recorders for command generation
+        recorder_radiko = RecorderRadiko() if args.service == "radiko" else None
+        recorder_nhk = RecorderNHK() if args.service == "nhk" else None
+
+        # Display results with recorder-generated commands
+        output = ProgramFormatter.format_list(
+            programs,
+            recorder_radiko=recorder_radiko,
+            recorder_nhk=recorder_nhk,
+        )
         print(output)
 
     except Exception as e:

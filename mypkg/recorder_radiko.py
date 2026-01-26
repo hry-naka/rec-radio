@@ -300,3 +300,29 @@ class RecorderRadiko(RecorderCommon):
         )
 
         return " ".join(shlex.quote(part) for part in cmd_parts)
+
+    def build_ffmpeg_cmd(
+        self,
+        program: Program,
+        output_file: Optional[str] = None,
+    ) -> str:
+        """Build ffmpeg command string for tfrec_radiko.py style output.
+
+        This method generates a command string that can be used by find_radio.py
+        for the Cmd output. It matches the format used by tfrec_radiko.py.
+
+        Args:
+            program: Program to record
+            output_file: Optional output file path (if None, uses default naming)
+
+        Returns:
+            Command string in tfrec_radiko.py format
+
+        Example:
+            >>> recorder = RecorderRadiko()
+            >>> program = Program(station="TBS", start_time="20260120133000", ...)
+            >>> cmd = recorder.build_ffmpeg_cmd(program)
+            >>> # Returns: "tfrec_radiko.py -s TBS -ft 20260120133000 -to 20260120135500"
+        """
+        # For Radiko, use tfrec_radiko.py format
+        return f"tfrec_radiko.py -s {program.station} -ft {program.start_time} -to {program.end_time}"

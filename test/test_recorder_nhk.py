@@ -301,5 +301,42 @@ class TestRecorderNHKRecord(unittest.TestCase):
         mock_record_program.assert_called_once()
 
 
+class TestRecorderNHKBuildCmd(unittest.TestCase):
+    """Test cases for build_ffmpeg_cmd() method."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.recorder = RecorderNHK()
+
+        self.program = Program(
+            title="ラジオ文芸館",
+            station="NHK",
+            start_time="20260120230000",
+            end_time="20260120232400",
+            source="nhk",
+            series_site_id="ABC123",
+        )
+
+    def test_build_ffmpeg_cmd_format(self):
+        """Test that build_ffmpeg_cmd generates correct tfrec_nhk.py format."""
+        cmd = self.recorder.build_ffmpeg_cmd(self.program)
+
+        # Verify command format
+        self.assertIn("tfrec_nhk.py", cmd)
+        self.assertIn("--id", cmd)
+        self.assertIn("ABC123", cmd)
+        self.assertIn("--date", cmd)
+        self.assertIn("20260120", cmd)
+        self.assertIn("--title", cmd)
+        self.assertIn("ラジオ文芸館", cmd)
+
+    def test_build_ffmpeg_cmd_matches_tfrec_format(self):
+        """Test that command matches exact tfrec_nhk.py format."""
+        cmd = self.recorder.build_ffmpeg_cmd(self.program)
+        expected = 'tfrec_nhk.py --id ABC123 --date 20260120 --title "ラジオ文芸館"'
+
+        self.assertEqual(cmd, expected)
+
+
 if __name__ == "__main__":
     unittest.main()

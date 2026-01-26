@@ -261,3 +261,30 @@ class RecorderNHK(RecorderCommon):
         )
 
         return " ".join(shlex.quote(part) for part in cmd_parts)
+
+    def build_ffmpeg_cmd(
+        self,
+        program: Program,
+        output_file: Optional[str] = None,
+    ) -> str:
+        """Build ffmpeg command string for tfrec_nhk.py style output.
+
+        This method generates a command string that can be used by find_radio.py
+        for the Cmd output. It matches the format used by tfrec_nhk.py.
+
+        Args:
+            program: Program to record
+            output_file: Optional output file path (if None, uses default naming)
+
+        Returns:
+            Command string in tfrec_nhk.py format
+
+        Example:
+            >>> recorder = RecorderNHK()
+            >>> program = Program(station="NHK", series_site_id="ABC123", ...)
+            >>> cmd = recorder.build_ffmpeg_cmd(program)
+            >>> # Returns: "tfrec_nhk.py --id ABC123 --date 20260120 --title \"...\""
+        """
+        # For NHK, use tfrec_nhk.py format
+        date_str = program.start_time[:8]
+        return f'tfrec_nhk.py --id {program.series_site_id} --date {date_str} --title "{program.title}"'

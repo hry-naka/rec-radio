@@ -215,11 +215,11 @@ def main() -> None:
     try:
         # Fetch program information for the specified time
         program = api.fetch_today_program(station, start_time)
-        
+
         if program is not None:
             program_info = ProgramFormatter.get_log_string(program)
             print(f"Program: {program_info}")
-            
+
             # Update program times to match user-specified range
             # (User may want to record a portion of the program)
             program.start_time = start_time

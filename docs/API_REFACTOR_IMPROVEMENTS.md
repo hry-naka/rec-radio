@@ -7,8 +7,10 @@
 - Program クラス中心の構造をより明確にし、責務分離を徹底する
 - recorder_radiko.py / recorder_nhk.py を「録音処理の唯一の窓口」として整理する
 - find_radio.py → Program → recorder_xxx の流れを安定させる
-- ProgramFormatter の Cmd と recorder_xxx の ffmpeg コマンド生成を完全に一致させる
+- **ProgramFormatter の Cmd と recorder_xxx の ffmpeg コマンド生成を完全に一致させる**
 - ffmpeg のオプションを .env で管理し、コードに直書きしない
+- **find_radio.py の --cmd 出力と実際の録音コマンドを完全一致させる**
+- **tfrec_radiko.py でも rec_radiko.py と同じ品質のメタデータを設定する**
 
 ## 実施した改善内容
 
@@ -16,12 +18,12 @@
 **ファイル**: `.env.example`
 
 **追加内容**:
-- `RADIKO_FFMPEG_OPTS`: Radiko 用 ffmpeg オプション（デフォルト: `-loglevel warning -y -reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 -reconnect_delay_max 600 -user_agent "..."`）
-- `NHK_FFMPEG_OPTS`: NHK 用 ffmpeg オプション（デフォルト: `-loglevel warning -y -reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 -reconnect_delay_max 600 -user_agent "..."`）
+- `RADIKO_FFMPEG_OPTS`: Radiko 用 ffmpeg オプション（デフォルト: `-loglevel warning -vn -acodec copy` に加えて接続オプション）
+- `NHK_FFMPEG_OPTS`: NHK 用 ffmpeg オプション（デフォルト: `-loglevel warning -vn -acodec copy` に加えて接続オプション）
 - `RADIKO_AREA_ID`: Radiko エリア ID（デフォルト: JP13）
 - `NHK_AREA_ID`: NHK エリア ID（デフォルト: JP13）
 
-**効果**: ユーザー環境に合わせて ffmpeg オプションをカスタマイズ可能に
+**効果**: ユーザー環境に合わせて ffmpeg オプションをカスタマイズ可能に、音声のみの録音を明示
 
 ### 2. recorder_radiko.py の強化
 **ファイル**: `mypkg/recorder_radiko.py`
@@ -30,12 +32,13 @@
 - `_load_ffmpeg_options()`: .env から RADIKO_FFMPEG_OPTS を読み込み
 - `record(program, output_file=None)`: 認証を含めた統一録音メソッド（Program を渡すだけで完結）
 - `record_stream_with_ffmpeg()`: Radiko 専用 ffmpeg 実行メソッド（.env のオプションを使用）
-- `get_ffmpeg_command()`: ffmpeg コマンド文字列生成（ProgramFormatter との一致のため）
+- `get_ffmpeg_command()`: ffmpeg コマンド文字列生成（内部使用）
+- **`build_ffmpeg_cmd(program)`**: tfrec_radiko.py 形式のコマンド生成（ProgramFormatter から利用）
 
 **効果**: 
 - tfrec_radiko.py の ffmpeg ロジックを完全に統合
 - .env のオプションを参照することで、コードの変更なしにカスタマイズ可能
-- ProgramFormatter と同じコマンドを生成できる
+- **ProgramFormatter が同じコマンド生成ロジックを使用できる**
 
 ### 3. recorder_nhk.py の強化
 **ファイル**: `mypkg/recorder_nhk.py`
@@ -43,10 +46,13 @@
 **追加・変更内容**:
 - `_load_ffmpeg_options()`: .env から NHK_FFMPEG_OPTS を読み込み
 - `record(program, output_file=None)`: 統一録音メソッド（Program を渡すだけで完結）
-- `record_stream_with_ffmpeg()`: NHK 専用 ffmpeg 実行メソッド（.env のオプションを使用）
-- `get_ffmpeg_command()`: ffmpeg コマンド文字列生成（ProgramFormatter との一致のため）
+- `record_stream_with_ffmpeg()`: NHK 専用 ffm内部使用）
+- **`build_ffmpeg_cmd(program)`**: tfrec_nhk.py 形式のコマンド生成（ProgramFormatter から利用）
 
 **効果**: 
+- Radiko と同様の構造で一貫性を保持
+- .env のオプションを参照
+- **ProgramFormatter が同じコマンド生成ロジックを使用できる**
 - Radiko と同様の構造で一貫性を保持
 - .env のオプションを参照
 - ProgramFormatter と同じコマンドを生成
@@ -55,28 +61,46 @@
 **ファイル**: `mypkg/program_formatter.py`
 
 **変更内容**:
-- `format_list()` に `recorder_radiko` と `recorder_nhk` の optional パラメータを追加（将来の拡張用）
+- `format_list()` に `recorder_radiko` と `recorder_nhk` のパラメータを追加
+- **recorder_xxx.build_ffmpeg_cmd(program) を呼び出して Cmd を生成**
+- recorder が提供されない場合のフォールバック処理を実装
 - TYPE_CHECKING を使用した循環インポートの回避
 
 **効果**: 
-- recorder の実装と一致するコマンド生成の準備
-- 現時点では tfrec_xxx.py のコマンドを出力（後続改善で recorder のコマンドも利用可能）
+- **find_radio.py の Cmd 出力と recorder_xxx の実装が完全一致**
+- コマンド生成ロジックの一元化
+- 将来的な拡張が容易
 
-### 5. tfrec_radiko.py の整理
+### 5. find_radio.py の整理
+**ファイル**: `find_radio.py`
+
+**変更内容**:
+- RecorderRadiko と RecorderNHK をインポート
+- **service に応じて適切な recorder インスタンスを作成**
+- **ProgramFormatter.format_list() に recorder を渡してコマンド生成**
+
+**効果**:
+- **Cmd 出力が recorder の実装と完全一致**
+- 録音処理は recorder_xxx が唯一の窓口であることを保証
+- Program の生成は API 呼び出しのみに限定
+
+### 6. tfrec_radiko.py の整理とメタデータ改善
 **ファイル**: `tfrec_radiko.py`
 
 **削除・変更内容**:
 - `get_stream_url_for_timefree()` を削除（recorder_radiko に統合）
 - `record_with_ffmpeg()` を削除（recorder_radiko の record_stream_with_ffmpeg を使用）
 - `record_program()` を簡素化し、RecorderRadiko.record_program() を使用
-- `main()` を簡素化し、Program インスタンスを作成して record_program() に渡すのみ
+- **`main()` で RadikoApi.fetch_today_program() を呼び出して番組情報を取得**
+- **取得した Program で録音することで、rec_radiko.py と同じ品質のメタデータを設定**
 
 **効果**:
 - コードの重複を排除
 - recorder_radiko.py に録音ロジックを完全に集約
+- **メタデータ（title, artist, album, comment, covr 等）が正しく設定される**
 - メンテナンス性の向上
 
-### 6. テストの更新
+### 7. テストの更新
 
 #### test_recorder_radiko.py
 **追加内容**:
@@ -87,6 +111,9 @@
 - `TestRecorderRadikoRecord`: 統一 record() メソッドのテスト
   - `test_record_method_handles_authorization()`: 自動認証処理
   - `test_record_method_handles_authorization_failure()`: 認証失敗処理
+- **`TestRecorderRadikoBuildCmd`: build_ffmpeg_cmd() のテスト**
+  - `test_build_ffmpeg_cmd_format()`: コマンド形式の検証
+  - `test_build_ffmpeg_cmd_matches_tfrec_format()`: tfrec_radiko.py 形式との一致確認
 
 #### test_recorder_nhk.py
 **追加内容**:
@@ -95,6 +122,9 @@
   - `test_ffmpeg_options_loaded_from_env()`: .env からのオプション読み込み
 - `TestRecorderNHKRecord`: 統一 record() メソッドのテスト
   - `test_record_method_calls_record_program()`: record_program 呼び出し確認
+- **`TestRecorderNHKBuildCmd`: build_ffmpeg_cmd() のテスト**
+  - `test_build_ffmpeg_cmd_format()`: コマンド形式の検証
+  - `test_build_ffmpeg_cmd_matches_tfrec_format()`: tfrec_nhk.py 形式との一致確認
 
 #### test_tfrec_radiko.py
 **変更内容**:

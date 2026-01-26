@@ -362,14 +362,20 @@ class ProgramFormatter:
             lines.append(f"Start : {start_str}")
             lines.append(f"End   : {end_str}")
 
-            # Add recording command
+            # Add recording command using recorder's build_ffmpeg_cmd()
             if program.is_nhk():
-                # For NHK: tfrec_nhk.py --id <series_site_id> --date <date> --title <title>
-                date_str = program.start_time[:8]
-                cmd = f'tfrec_nhk.py --id {program.series_site_id} --date {date_str} --title "{program.title}"'
+                if recorder_nhk:
+                    cmd = recorder_nhk.build_ffmpeg_cmd(program)
+                else:
+                    # Fallback if recorder not provided
+                    date_str = program.start_time[:8]
+                    cmd = f'tfrec_nhk.py --id {program.series_site_id} --date {date_str} --title "{program.title}"'
             else:
-                # For Radiko: tfrec_radiko.py -s <station> -ft <from_time> -to <to_time>
-                cmd = f"tfrec_radiko.py -s {program.station} -ft {program.start_time} -to {program.end_time}"
+                if recorder_radiko:
+                    cmd = recorder_radiko.build_ffmpeg_cmd(program)
+                else:
+                    # Fallback if recorder not provided
+                    cmd = f"tfrec_radiko.py -s {program.station} -ft {program.start_time} -to {program.end_time}"
 
             lines.append(f"Cmd   : {cmd}")
             lines.append("")  # Blank line between entries
