@@ -42,7 +42,7 @@
   "JazzReminiscence": {
     "service": "Radiko",
     "station": "FMT",
-    "duration": 55,
+    "duration": 30,
     "outputdir": "/home/naka-h/Radio/Music/JR",
     "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/JR",
     "prefix": "JazzReminiscence"
