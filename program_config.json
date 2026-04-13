@@ -1,7 +1,7 @@
 {
   "RadioEnglishConversation": {
     "service": "NHK",
-    "station": "NHK2",
+    "station": "FM",
     "duration": 15,
     "outputdir": "/home/naka-h/Radio/English/REC",
     "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/REC",
@@ -9,7 +9,7 @@
   },
   "ModernEnglishFromNEWS": {
     "service": "NHK",
-    "station": "NHK2",
+    "station": "FM",
     "duration": 15,
     "outputdir": "/home/naka-h/Radio/English/MEN",
     "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/MEN",
@@ -17,7 +17,7 @@
   },
   "EverydayChinese": {
     "service": "NHK",
-    "station": "NHK2",
+    "station": "FM",
     "duration": 15,
     "outputdir": "/home/naka-h/Radio/Chinese/ECN",
     "destdir": "/home/naka-h/OneDrive/Sound/Radio/Chinese/ECN",
@@ -25,7 +25,7 @@
   },
   "EikaiwaTimeTria": {
     "service": "NHK",
-    "station": "NHK2",
+    "station": "FM",
     "duration": 10,
     "outputdir": "/home/naka-h/Radio/English/ETT",
     "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/ETT",
@@ -33,7 +33,7 @@
   },
   "EnjoySimpleEnglish": {
     "service": "NHK",
-    "station": "NHK2",
+    "station": "FM",
     "duration": 5,
     "outputdir": "/home/naka-h/Radio/English/ESE",
     "destdir": "/home/naka-h/OneDrive/Sound/Radio/English/ESE",
@@ -41,8 +41,8 @@
   },
   "JazzReminiscence": {
     "service": "Radiko",
-    "station": "INT",
-    "duration": 30,
+    "station": "FMT",
+    "duration": 55,
     "outputdir": "/home/naka-h/Radio/Music/JR",
     "destdir": "/home/naka-h/OneDrive/Sound/Radio/Music/JR",
     "prefix": "JazzReminiscence"

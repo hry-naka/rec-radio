@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime as DT
+from datetime import datetime as DT, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -41,8 +41,8 @@ NHK_STREAM_URL = "https://www.nhk.or.jp/radio/config/config_web.xml"
 NHK_API_V2_NOW = "http://api.nhk.or.jp/v2/pg/now/{}/{}.json?key={}"
 NHK_API_V2_INFO = "http://api.nhk.or.jp/v2/pg/info/{}/{}/{}.json?key={}"
 NHK_API_V3_NOW = (
-    "https://program-api.nhk.jp/v3/papiPgDateRadio"
-    "?service={service}&area={area}&date={date}&key={key}"
+    "https://program-api.nhk.jp/v3/papiPgNowRadio"
+    "?service={service}&area={area}&key={key}"
 )
 NHK_API_V3_INFO = (
     "https://program-api.nhk.jp/v3/papiBroadcastEventRadio"
@@ -146,7 +146,7 @@ def get_streamurl(channel: str, location: str) -> Optional[Tuple[str, str]]:
 
 
 def get_program_info(
-    area_code: str, code: str, timing: str
+    area_code: str, code: str, target_time: DT
 ) -> Optional[Dict[str, Any]]:
     """Get program information from NHK API with error handling.
 
@@ -159,9 +159,9 @@ def get_program_info(
         Program info dict or None if not available
     """
     if API_VERSION == "v3":
-        return _get_program_info_v3(area_code, code, timing)
+        return _get_program_info_v3(area_code, code, target_time)
     else:
-        return _get_program_info_v2(area_code, code, timing)
+        return _get_program_info_v2(area_code, code, "present")
 
 
 def _get_program_info_v2(
@@ -267,12 +267,15 @@ def _get_program_info_v2(
 
 
 def _get_program_info_v3(
-    area_code: str, code: str, timing: str
+    area_code: str, code: str, target_time: DT
 ) -> Optional[Dict[str, Any]]:
     """Get program information from NHK API v3 with error handling."""
-    today = DT.now().strftime("%Y-%m-%d")
+    #today = DT.now().strftime("%Y-%m-%d")
+    #now_url = NHK_API_V3_NOW.format(
+    #    service=code, area=area_code, date=today, key=NHK_API_KEY
+    #)
     now_url = NHK_API_V3_NOW.format(
-        service=code, area=area_code, date=today, key=NHK_API_KEY
+        service=code, area=area_code, key=NHK_API_KEY
     )
 
     try:
@@ -288,18 +291,18 @@ def _get_program_info_v3(
 
     # Extract publication list
     if code not in now_json:
-        print(f"[NHK v3] no program data for {code} on {today}")
+        print(f"[NHK v3] no program data for {code} now")
         return None
 
     service_data = now_json.get(code, {})
     publication = service_data.get("publication", [])
 
     if not publication:
-        print(f"[NHK v3] no program data for {code} on {today}")
+        print(f"[NHK v3] no program data for {code} now")
         return None
 
     # Find currently broadcasting program
-    now = DT.now().astimezone()
+    #now = DT.now().astimezone()
     current_program = None
 
     for program in publication:
@@ -309,7 +312,7 @@ def _get_program_info_v3(
             )
             end_dt = DT.fromisoformat(program.get("endDate", "").replace("Z", "+00:00"))
 
-            if start_dt <= now <= end_dt:
+            if start_dt <= target_time <= end_dt:
                 current_program = program
                 break
         except (ValueError, AttributeError) as e:
@@ -559,6 +562,7 @@ def main() -> None:
     duration = int(args.duration * 60)
     outdir = args.outputdir
     prefix = args.prefix if args.prefix else channel
+    target_time = DT.now().astimezone() + timedelta(seconds=duration / 2)
 
     # Get stream URL
     stream_result = get_streamurl(channel, LOCATION)
@@ -569,18 +573,23 @@ def main() -> None:
     dl_url, code = stream_result
 
     # Get program information (always "present" for v3)
-    program = get_program_info(AREA_CODE, code, "present")
+    program = get_program_info(AREA_CODE, code, target_time)
     if program is None:
         print("Error: No program information available")
-        sys.exit(1)
 
     # Perform recording
     date = DT.now().strftime("%Y-%m-%d-%H_%M")
     rec_file = live_rec(dl_url, duration, outdir, prefix, date)
-
     if rec_file is None:
         print("Error: Recording failed")
         sys.exit(1)
+
+    # retry after recording
+    if program is None:
+        print("Retry getting program info.")
+        program = get_program_info(AREA_CODE, code, target_time)
+    else:
+        print("Retry skipped.")
 
     # Set metadata
     try:
