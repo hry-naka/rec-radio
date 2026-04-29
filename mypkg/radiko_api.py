@@ -25,10 +25,9 @@ class RadikoAPIClient:
     """
 
     # API endpoints
-    STATION_LIST_URL = "https://radiko.jp/v3/station/list/{}.xml"
-    NOW_URL = "https://radiko.jp/v3/program/now/{}.xml"
-    WEEKLY_URL = "https://radiko.jp/v3/program/station/weekly/{}.xml"
-    TODAY_URL = "http://radiko.jp/v3/program/station/date/{}/{}.xml"
+    STATION_LIST_URL = "https://radiko.jp/v3/station/list/{}"
+    NOW_URL = "https://radiko.jp/v3/program/now/{}"
+    WEEKLY_URL = "https://radiko.jp/v3/program/station/weekly/{}"
     DATE_URL = "http://radiko.jp/v3/program/station/date/{}/{}"
     AUTH_KEY = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
     AUTH1_URL = "https://radiko.jp/v2/api/auth1"
@@ -38,6 +37,64 @@ class RadikoAPIClient:
     def __init__(self):
         """Initialize API client."""
         pass
+
+    def get_station_list(self, area_id: str = "JP13") -> Optional[ET.Element]:
+        """Get the list of stations for the specified area.
+
+        Args:
+            area_id: The ID of the area. Defaults to "JP13".
+
+        Returns:
+            XML element representing the station list, or None if failed.
+        """
+        station_list_url = f"{self.STATION_LIST_URL.format(area_id)}.xml"
+        try:
+            resp = requests.get(station_list_url, timeout=(20, 5))
+            if resp.status_code == 200:
+                return ET.fromstring(resp.content.decode("utf-8"))
+            else:
+                print(f"Error fetching station list: {resp.status_code}")
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching station list: {e}")
+            return None
+
+    def get_channel_list(self, area_id: str = "JP13") -> Tuple[List[str], List[str]]:
+        """Get the list of channel IDs and names for the specified area.
+
+        Args:
+            area_id: Area ID. Defaults to "JP13".
+
+        Returns:
+            Tuple of (channel IDs list, channel names list).
+        """
+        station_list = self.get_station_list(area_id)
+        id_list = []
+        name_list = []
+        if station_list is not None:
+            for station_id in station_list.iter("id"):
+                id_list.append(station_id.text)
+            for name in station_list.iter("name"):
+                name_list.append(name.text)
+        return id_list, name_list
+
+    def is_station_available(self, station: str, area_id: str = "JP13") -> bool:
+        """Check if the specified station is available in the given area.
+
+        Args:
+            station: Station ID
+            area_id: Area ID. Defaults to "JP13".
+
+        Returns:
+            True if the station is available, False otherwise.
+        """
+        station_list = self.get_station_list(area_id)
+        if station_list is None:
+            return False
+        for station_elem in station_list.iter("id"):
+            if station_elem.text == station:
+                return True
+        return False
 
     def _gettext(self, elem) -> str:
         """Extract text content from an XML element, including child elements.
@@ -59,123 +116,6 @@ class RadikoAPIClient:
             if child.tail:
                 parts.append(child.tail)
         return "".join(parts)
-
-    def get_station_list(self, area_id: str = "JP13") -> Optional[ET.Element]:
-        """Get the list of stations for the specified area.
-
-        Args:
-            area_id: The ID of the area. Defaults to "JP13".
-
-        Returns:
-            XML element representing the station list, or None if failed.
-        """
-        station_list_url = self.STATION_LIST_URL.format(area_id)
-        try:
-            resp = requests.get(station_list_url, timeout=(20, 5))
-            if resp.status_code == 200:
-                return ET.fromstring(resp.content.decode("utf-8"))
-            else:
-                print(f"Error fetching station list: {resp.status_code}")
-                return None
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching station list: {e}")
-            return None
-
-    def search_past_week(
-        self,
-        keyword: str = "",
-        area_id: str = "JP13",
-    ) -> List[dict]:
-        """Search programs from the past seven days across all stations.
-
-        Args:
-            keyword: Keyword to search in program titles and descriptions.
-            area_id: Area ID. Defaults to "JP13".
-
-        Returns:
-            List of matching program dictionaries.
-        """
-        today = DT.today()
-        dates = [(today - TD(days=i)).strftime("%Y%m%d") for i in range(7)]
-
-        root = self.get_station_list(area_id)
-        stations = [st.find("id").text for st in root.findall(".//station")]
-        results = []
-
-        for date in dates:
-            print(f"try to search program on {date}.", end="", flush=True)
-            for station in stations:
-                url = f"{self.DATE_URL.format(date, station)}.xml"
-                try:
-                    res = requests.get(url, timeout=10)
-                    if res.status_code != 200:
-                        continue
-                    root = ET.fromstring(res.content)
-
-                    for prog in root.findall(".//prog"):
-                        title_elem = prog.find("title")
-                        info_elem = prog.find("info")
-
-                        title = self._gettext(title_elem)
-                        info = self._gettext(info_elem)
-                        ft = prog.get("ft")
-                        to = prog.get("to")
-                        ts_in_ng = prog.get("ts_in_ng", "1")
-
-                        if keyword in title or keyword in info:
-                            print("/", end="", flush=True)
-                            results.append(
-                                {
-                                    "station": station,
-                                    "date": date,
-                                    "title": title,
-                                    "info": info,
-                                    "ft": ft,
-                                    "to": to,
-                                    "ts_in_ng": ts_in_ng,
-                                }
-                            )
-                except Exception:
-                    continue
-            print("done.", flush=True)
-        return results
-
-    def is_station_available(self, station: str, area_id: str = "JP13") -> bool:
-        """Check if the specified station is available in the given area.
-
-        Args:
-            station: Station ID
-            area_id: Area ID. Defaults to "JP13".
-
-        Returns:
-            True if the station is available, False otherwise.
-        """
-        station_list = self.get_station_list(area_id)
-        if station_list is None:
-            return False
-        for station_elem in station_list.iter("id"):
-            if station_elem.text == station:
-                return True
-        return False
-
-    def get_channel_list(self, area_id: str = "JP13") -> Tuple[List[str], List[str]]:
-        """Get the list of channel IDs and names for the specified area.
-
-        Args:
-            area_id: Area ID. Defaults to "JP13".
-
-        Returns:
-            Tuple of (channel IDs list, channel names list).
-        """
-        station_list = self.get_station_list(area_id)
-        id_list = []
-        name_list = []
-        if station_list is not None:
-            for station_id in station_list.iter("id"):
-                id_list.append(station_id.text)
-            for name in station_list.iter("name"):
-                name_list.append(name.text)
-        return id_list, name_list
 
     def _extract_program_from_xml(
         self,
@@ -204,12 +144,12 @@ class RadikoAPIClient:
         img_elem = prog_elem.find("img")
         url_elem = prog_elem.find("url")
 
-        title = title_elem.text if title_elem is not None else ""
-        performer = pfm_elem.text if pfm_elem is not None else None
-        description = desc_elem.text if desc_elem is not None else None
-        info = info_elem.text if info_elem is not None else None
-        image_url = img_elem.text if img_elem is not None else None
-        url = url_elem.text if url_elem is not None else None
+        title = self._gettext(title_elem)
+        performer = self._gettext(pfm_elem)
+        description = self._gettext(desc_elem)
+        info = self._gettext(info_elem)
+        image_url = self._gettext(img_elem)
+        url = self._gettext(url_elem)
 
         ft_attr = prog_elem.attrib.get("ft", "")
         to_attr = prog_elem.attrib.get("to", "")
@@ -229,160 +169,120 @@ class RadikoAPIClient:
             url=url,
         )
 
-    def fetch_today_program(
-        self,
-        station: str,
-        current_time: str,
-        area_id: str = "JP13",
+    def _fetch_program_xml(
+        self, mode: str, station: str, from_time: str, area_id: str = "JP13"
+    ) -> Optional[ET.Element]:
+        if mode == "now":
+            url = f"{self.NOW_URL.format(area_id)}.xml"
+        elif mode == "date":
+            url = f"{self.DATE_URL.format(from_time[:8], station)}.xml"
+        elif mode == "weekly":
+            url = f"{self.WEEKLY_URL.format(station)}.xml"
+        else:
+            raise ValueError("Invalid mode")
+
+        resp = requests.get(url, timeout=(20, 5))
+        if resp.status_code != 200:
+            return None
+        return ET.fromstring(resp.content.decode("utf-8"))
+
+    def _find_program(
+        self, root: ET.Element, station: str, from_time: str
     ) -> Optional[Program]:
-        """Fetch today's program schedule and find the program at current time.
-
-        Args:
-            station: Station ID
-            current_time: Current time in YYYYMMDDHHMMSS format
-            area_id: Area ID. Defaults to "JP13".
-
-        Returns:
-            Program object if found, None otherwise.
-        """
-        url = self.TODAY_URL.format(current_time[:8], station)
-        print(f"Fetching: {url}")
-        try:
-            resp = requests.get(url, timeout=(20, 5))
-            if resp.status_code != 200:
-                print(f"Error: {resp.status_code}")
-                return None
-
-            root = ET.fromstring(resp.content.decode("utf-8"))
-            progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
-
-            if not progs:
-                print("No programs found for today.")
-                return None
-
-            # Find program containing current_time
-            for prog in progs:
-                ft = prog.attrib.get("ft")
-                to = prog.attrib.get("to")
-                if ft and to and ft <= current_time < to:
-                    print(
-                        f"Current program found: {ft}-{to} "
-                        f"(current: {current_time})"
-                    )
-                    return self._extract_program_from_xml(root, station, ft)
-
-            print(f"No program found for current time: {current_time}")
-            return None
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching program: {e}")
-            return None
+        progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
+        for prog in progs:
+            ft = prog.attrib.get("ft")
+            to = prog.attrib.get("to")
+            if ft and to and ft <= from_time < to:
+                return self._extract_program_from_xml(root, station, ft)
+        return None
 
     def fetch_now_program(
-        self,
-        station: str,
-        current_time: str,
-        area_id: str = "JP13",
+        self, station: str, from_time: str, area_id: str = "JP13"
     ) -> Optional[Program]:
-        """Fetch now-on-air program information.
+        root = self._fetch_program_xml("now", station, from_time, area_id)
+        return self._find_program(root, station, from_time)
 
-        Args:
-            station: Station ID
-            current_time: Current time in YYYYMMDDHHMMSS format
-            area_id: Area ID. Defaults to "JP13".
-
-        Returns:
-            Program object if found, None otherwise.
-        """
-        try:
-            resp = requests.get(self.NOW_URL.format(area_id), timeout=(20, 5))
-            if resp.status_code != 200:
-                print(f"Error: {resp.status_code}")
-                return None
-
-            root = ET.fromstring(resp.content.decode("utf-8"))
-            progs = root.findall(f'.//station[@id="{station}"]//progs/prog')
-
-            if not progs:
-                print("No programs found.")
-                return None
-
-            # Find program containing current_time
-            for prog in progs:
-                ft = prog.attrib.get("ft")
-                to = prog.attrib.get("to")
-                if ft and to and ft <= current_time < to:
-                    print(f"Current program: {ft}-{to} " f"(current: {current_time})")
-                    return self._extract_program_from_xml(root, station, ft)
-
-            print(f"No program found for current time: {current_time}")
-            return None
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching program: {e}")
-            return None
+    def fetch_date_program(
+        self, station: str, from_time: str, area_id: str = "JP13"
+    ) -> Optional[Program]:
+        root = self._fetch_program_xml("date", station, from_time, area_id)
+        return self._find_program(root, station, from_time)
 
     def fetch_weekly_program(
-        self,
-        station: str,
-        from_time: str,
-        to_time: Optional[str] = None,
+        self, station: str, from_time: str, area_id: str = "JP13"
     ) -> Optional[Program]:
-        """Fetch weekly program schedule for specified time range.
-
-        Args:
-            station: Station ID
-            from_time: Start time in YYYYMMDDHHMMSS format
-            to_time: End time in YYYYMMDDHHMMSS format (optional)
-
-        Returns:
-            Program object if found, None otherwise.
-        """
-        weekly_url = self.WEEKLY_URL.format(station)
-        try:
-            resp = requests.get(weekly_url, timeout=(20, 5))
-            if resp.status_code != 200:
-                print(f"Error: {resp.status_code}")
-                return None
-
-            root = ET.fromstring(resp.content.decode("utf-8"))
-
-            # Find program by time range
-            if to_time is None:
-                prog_elem = root.find(f'.//prog[@ft="{from_time}"]')
-            else:
-                prog_elem = root.find(f'.//prog[@ft="{from_time}"][@to="{to_time}"]')
-
-            if prog_elem is None:
-                return None
-
-            return self._extract_program_from_xml(root, station, from_time)
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching program: {e}")
-            return None
+        root = self._fetch_program_xml("weekly", station, from_time, area_id)
+        return self._find_program(root, station, from_time)
 
     def fetch_program(
-        self,
-        station: str,
-        from_time: str,
-        to_time: Optional[str] = None,
-        area_id: str = "JP13",
-        now: bool = False,
+        self, station: str, from_time: str, area_id: str = "JP13", now: bool = False
     ) -> Optional[Program]:
-        """Fetch program information.
+
+        # now-API (try to get from now-API)
+        if now:
+            prog = self.fetch_now_program(station, from_time, area_id)
+            if prog:
+                return prog
+
+        today = DT.now().strftime("%Y%m%d")
+
+        # before today use date-API
+        if from_time[:8] <= today:
+            return self.fetch_date_program(station, from_time, area_id)
+
+        # after today use weekly-API
+        return self.fetch_weekly_program(station, from_time, area_id)
+
+    def search_past_week(
+        self,
+        keyword: str = "",
+        area_id: str = "JP13",
+    ) -> List[Program]:
+        """Search programs from the past seven days across all stations.
 
         Args:
-            station: Station ID
-            from_time: Start time in YYYYMMDDHHMMSS format
-            to_time: End time in YYYYMMDDHHMMSS format (optional)
+            keyword: Keyword to search in program titles and descriptions.
             area_id: Area ID. Defaults to "JP13".
-            now: Whether to fetch current program. Defaults to False.
 
         Returns:
-            Program object if found, None otherwise.
+            List of matching program objects.
         """
-        if now:
-            return self.fetch_today_program(station, from_time, area_id)
-        else:
-            return self.fetch_weekly_program(station, from_time, to_time)
+        today = DT.today()
+        dates = [(today - TD(days=i)).strftime("%Y%m%d") for i in range(7)]
+
+        root = self.get_station_list(area_id)
+        stations = [st.find("id").text for st in root.findall(".//station")]
+        results = []
+
+        for date in dates:
+            print(f"try to search program on {date}.", end="", flush=True)
+            for station in stations:
+                url = f"{self.DATE_URL.format(date, station)}.xml"
+                try:
+                    res = requests.get(url, timeout=10)
+                    if res.status_code != 200:
+                        continue
+                    root = ET.fromstring(res.content)
+
+                    for prog in root.findall(".//prog"):
+                        title_elem = prog.find("title")
+                        info_elem = prog.find("info")
+
+                        title = self._gettext(title_elem)
+                        info = self._gettext(info_elem)
+                        ft = prog.get("ft")
+
+                        if keyword in title or keyword in info:
+                            print("/", end="", flush=True)
+                            program = self._extract_program_from_xml(root, station, ft)
+                            if program:
+                                results.append(program)
+
+                except Exception:
+                    continue
+            print("done.", flush=True)
+        return results
 
     def get_stream_url(self, channel: str, auth_token: str) -> Optional[str]:
         """Retrieve M3U8 stream URL from Radiko server.
@@ -463,40 +363,3 @@ class RadikoAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"Authorization error: {e}")
             return None
-
-    def dump(self) -> None:
-        """Dump API statistics (for debugging)."""
-        print("Note: RadikoAPIClient is stateless.")
-
-
-if __name__ == "__main__":
-    """Simple operational check for RadikoAPIClient."""
-    client = RadikoAPIClient()
-
-    # Authorize
-    print("Authorizing...")
-    auth_result = client.authorize()
-    if auth_result is None:
-        print("Authorization failed")
-        exit(1)
-
-    auth_token, area_id = auth_result
-    print(f"Authorization successful. Area ID: {area_id}")
-    print()
-
-    # Fetch and display current program on TBS
-    print("Fetching current program on TBS...")
-    current_time = DT.now().strftime("%Y%m%d%H%M00")
-    program = client.fetch_today_program("TBS", current_time, area_id)
-
-    if program:
-        print(f"Title:       {program.title}")
-        print(f"Station:     {program.station}")
-        print(f"Start time:  {program.start_time}")
-        print(f"End time:    {program.end_time}")
-        if program.performer:
-            print(f"Performer:   {program.performer}")
-        if program.description:
-            print(f"Description: {program.description}")
-    else:
-        print("No program found")

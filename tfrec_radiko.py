@@ -12,9 +12,14 @@ import subprocess
 import sys
 import argparse
 import os
+from dotenv import load_dotenv
+
 from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
-from mypkg.program import Program
+
+# Load environment variables from .env file
+load_dotenv()
+AREA_CODE = os.getenv("AREA_CODE", "130")
 
 
 def get_args() -> argparse.Namespace:
@@ -47,39 +52,6 @@ def get_args() -> argparse.Namespace:
         help="Prefix name for output file or output directory.",
     )
     return parser.parse_args()
-
-
-def fetch_program_info(
-    api_client: RadikoAPIClient,
-    station: str,
-    fromtime: str,
-) -> Program:
-    """Fetch program information from Radiko API.
-
-    Args:
-        api_client: RadikoAPIClient instance
-        station: Station ID
-        fromtime: Start time (YYYYMMDDHHmmss format)
-
-    Returns:
-        Program object with program information or None if not found
-    """
-    try:
-        # Use fromtime to search in weekly program schedule
-        # fromtime is in format: YYYYMMDDHHmmss
-        program = api_client.fetch_weekly_program(
-            station=station,
-            from_time=fromtime,
-        )
-
-        return program
-
-    except Exception as e:
-        print(
-            f"Warning: Could not fetch program info: {e}",
-            file=sys.stderr,
-        )
-        return None
 
 
 def record_radiko_timefree(station, ft, output) -> bool:
@@ -136,7 +108,8 @@ def main() -> None:
     api_client = RadikoAPIClient()
 
     # Check if station is available
-    if not api_client.is_station_available(station):
+    area_id = f"JP{AREA_CODE[:2]}"  # Use AREA_CODE from .env or default to JP13
+    if not api_client.is_station_available(station, area_id):
         print(
             f"Error: Specified station '{station}' is not available.",
             file=sys.stderr,
@@ -171,7 +144,7 @@ def main() -> None:
             print(f"Successfully recorded: {output_file_path}")
 
             # Fetch program information and set metadata
-            program = fetch_program_info(api_client, station, fromtime)
+            program = api_client.fetch_program(station, fromtime, area_id, now=False)
             if program is not None:
                 metadata_success = recorder.set_metadata(output_file_path, program)
                 if metadata_success:

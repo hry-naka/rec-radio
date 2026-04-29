@@ -7,8 +7,14 @@ This module searches for programs matching a keyword using the Radiko API.
 
 import argparse
 import sys
+import os
 
 from mypkg.radiko_api import RadikoAPIClient
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+AREA_CODE = os.getenv("AREA_CODE", "130")
 
 
 def get_args() -> argparse.Namespace:
@@ -25,16 +31,7 @@ def get_args() -> argparse.Namespace:
         nargs=1,
         help="Keyword to search for in Radiko programs.",
     )
-    parser.add_argument(
-        "-a",
-        "--area_id",
-        required=False,
-        nargs=1,
-        help=(
-            "Area ID for Radiko program search (e.g., 'JP13' for "
-            "Tokyo/Japan). If omitted, area ID will be auto-retrieved."
-        ),
-    )
+
     return parser.parse_args()
 
 
@@ -45,15 +42,7 @@ def main() -> None:
     keyword = args.keyword[0]
 
     # Determine area ID
-    if args.area_id is None:
-        # Authorize to get area ID
-        auth_result = client.authorize()
-        if auth_result is None:
-            print("Error: Could not resolve area ID. Use -a option.")
-            sys.exit(1)
-        _, area_id = auth_result
-    else:
-        area_id = args.area_id[0]
+    area_id = f"JP{AREA_CODE[:2]}"  # Use AREA_CODE from .env or default to JP13
 
     # Search for programs
     print(f"Searching for programs with keyword: '{keyword}'")
@@ -68,7 +57,7 @@ def main() -> None:
         sys.exit(0)
 
     for r in results:
-        print(f"{r['title']} -s {r['station']} " f"-ft {r['ft']} ")
+        print(f"{r.title} -s {r.station} -ft {r.start_time}")
 
 
 if __name__ == "__main__":

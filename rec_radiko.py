@@ -101,7 +101,7 @@ def main() -> None:
     print(f"Stream URL: {stream_url}")
 
     # Fetch program information
-    program = api_client.fetch_program(channel, fromtime, None, area_id, now=True)
+    program = api_client.fetch_program(channel, fromtime, area_id, now=True)
     if program is None:
         print("Warning: Program information not available")
         program_info = "(Unknown)"
