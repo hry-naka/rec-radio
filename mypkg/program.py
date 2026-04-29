@@ -3,7 +3,7 @@
 This module defines the data structure for representing radio program information.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 

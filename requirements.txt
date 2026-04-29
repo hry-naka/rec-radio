@@ -1,4 +1,8 @@
 python-dotenv
 requests
 mutagen
-pylint
+yt-dlp
+git+https://github.com/garret1317/yt-dlp-rajiko.git
+
+ruff
+black

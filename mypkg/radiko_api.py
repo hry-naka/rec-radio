@@ -6,11 +6,7 @@ station information queries.
 """
 
 import base64
-import hashlib
-import json
-import random
 import re
-import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime as DT
 from datetime import timedelta as TD
@@ -29,11 +25,11 @@ class RadikoAPIClient:
     """
 
     # API endpoints
-    SEARCH_URL = "https://radiko.jp/v3/api/program/search"
     STATION_LIST_URL = "https://radiko.jp/v3/station/list/{}.xml"
     NOW_URL = "https://radiko.jp/v3/program/now/{}.xml"
     WEEKLY_URL = "https://radiko.jp/v3/program/station/weekly/{}.xml"
     TODAY_URL = "http://radiko.jp/v3/program/station/date/{}/{}.xml"
+    DATE_URL = "http://radiko.jp/v3/program/station/date/{}/{}"
     AUTH_KEY = "bcd151073c03b352e1ef2fd66c32209da9ca0afa"
     AUTH1_URL = "https://radiko.jp/v2/api/auth1"
     AUTH2_URL = "https://radiko.jp/v2/api/auth2"
@@ -42,6 +38,27 @@ class RadikoAPIClient:
     def __init__(self):
         """Initialize API client."""
         pass
+
+    def _gettext(self, elem) -> str:
+        """Extract text content from an XML element, including child elements.
+
+        Args:
+            elem: XML element to extract text from.
+
+        Returns:
+            Concatenated text content as a string.
+        """
+        if elem is None:
+            return ""
+        parts = []
+        if elem.text:
+            parts.append(elem.text)
+        for child in elem:
+            if child.text:
+                parts.append(child.text)
+            if child.tail:
+                parts.append(child.tail)
+        return "".join(parts)
 
     def get_station_list(self, area_id: str = "JP13") -> Optional[ET.Element]:
         """Get the list of stations for the specified area.
@@ -63,6 +80,65 @@ class RadikoAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching station list: {e}")
             return None
+
+    def search_past_week(
+        self,
+        keyword: str = "",
+        area_id: str = "JP13",
+    ) -> List[dict]:
+        """Search programs from the past seven days across all stations.
+
+        Args:
+            keyword: Keyword to search in program titles and descriptions.
+            area_id: Area ID. Defaults to "JP13".
+
+        Returns:
+            List of matching program dictionaries.
+        """
+        today = DT.today()
+        dates = [(today - TD(days=i)).strftime("%Y%m%d") for i in range(7)]
+
+        root = self.get_station_list(area_id)
+        stations = [st.find("id").text for st in root.findall(".//station")]
+        results = []
+
+        for date in dates:
+            print(f"try to search program on {date}.", end="", flush=True)
+            for station in stations:
+                url = f"{self.DATE_URL.format(date, station)}.xml"
+                try:
+                    res = requests.get(url, timeout=10)
+                    if res.status_code != 200:
+                        continue
+                    root = ET.fromstring(res.content)
+
+                    for prog in root.findall(".//prog"):
+                        title_elem = prog.find("title")
+                        info_elem = prog.find("info")
+
+                        title = self._gettext(title_elem)
+                        info = self._gettext(info_elem)
+                        ft = prog.get("ft")
+                        to = prog.get("to")
+                        ts_in_ng = prog.get("ts_in_ng", "1")
+
+                        if keyword in title or keyword in info:
+                            print("/", end="", flush=True)
+                            results.append(
+                                {
+                                    "station": station,
+                                    "date": date,
+                                    "title": title,
+                                    "info": info,
+                                    "ft": ft,
+                                    "to": to,
+                                    "ts_in_ng": ts_in_ng,
+                                }
+                            )
+                except Exception:
+                    continue
+            print("done.", flush=True)
+        return results
 
     def is_station_available(self, station: str, area_id: str = "JP13") -> bool:
         """Check if the specified station is available in the given area.
@@ -340,68 +416,6 @@ class RadikoAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching stream URL: {e}")
             return None
-
-    @staticmethod
-    def _generate_uid() -> str:
-        """Generate a unique ID for API requests.
-
-        Returns:
-            Unique ID string.
-        """
-        rnd = random.random() * 1000000000
-        msec = TD.total_seconds(DT.now() - DT(1970, 1, 1)) * 1000
-        return hashlib.md5(str(rnd + msec).encode("utf-8")).hexdigest()
-
-    def search_programs(
-        self,
-        keyword: str = "",
-        time_filter: str = "past",
-        area_id: str = "JP13",
-    ) -> dict:
-        """Search for programs by keyword.
-
-        Args:
-            keyword: Keyword to search for in program titles.
-            time_filter: Time filter for search ('past', 'future', 'all').
-                Defaults to "past".
-            area_id: Area ID for search. Defaults to "JP13".
-
-        Returns:
-            Dictionary containing search results with 'data' key, or empty dict
-            if request fails.
-        """
-        # Generate unique ID for request
-        uid = self._generate_uid()
-
-        # Use the actual Radiko search API endpoint
-        search_url = (
-            "https://api.annex-cf.radiko.jp/v1/programs/legacy/" "perl/program/search"
-        )
-
-        params = {
-            "key": keyword,
-            "filter": "",
-            "start_day": "",
-            "end_day": "",
-            "area_id": area_id,
-            "region_id": "",
-            "cur_area_id": area_id,
-            "uid": uid,
-            "row_limit": 12,
-            "app_id": "pc",
-            "action_id": 0,
-        }
-
-        try:
-            response = requests.get(search_url, params=params, timeout=10)
-            response.raise_for_status()
-
-            if response.content:
-                return response.json()
-            return {}
-        except requests.exceptions.RequestException as e:
-            print(f"Error searching programs: {e}", file=sys.stderr)
-            return {}
 
     def authorize(self) -> Optional[Tuple[str, str]]:
         """Perform Radiko API authentication.

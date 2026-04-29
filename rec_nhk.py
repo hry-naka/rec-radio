@@ -6,6 +6,7 @@ This module provides functionalities for recording NHK radio.
 Author: Hiroyuki NAKAMURA (https://github.com/hry-naka)
 Date: May 25, 2023
 """
+
 import argparse
 import json
 import os
@@ -15,7 +16,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime as DT, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 from dotenv import load_dotenv
@@ -270,13 +271,11 @@ def _get_program_info_v3(
     area_code: str, code: str, target_time: DT
 ) -> Optional[Dict[str, Any]]:
     """Get program information from NHK API v3 with error handling."""
-    #today = DT.now().strftime("%Y-%m-%d")
-    #now_url = NHK_API_V3_NOW.format(
+    # today = DT.now().strftime("%Y-%m-%d")
+    # now_url = NHK_API_V3_NOW.format(
     #    service=code, area=area_code, date=today, key=NHK_API_KEY
-    #)
-    now_url = NHK_API_V3_NOW.format(
-        service=code, area=area_code, key=NHK_API_KEY
-    )
+    # )
+    now_url = NHK_API_V3_NOW.format(service=code, area=area_code, key=NHK_API_KEY)
 
     try:
         resp = requests.get(now_url, timeout=HTTP_TIMEOUT)
@@ -302,7 +301,7 @@ def _get_program_info_v3(
         return None
 
     # Find currently broadcasting program
-    #now = DT.now().astimezone()
+    # now = DT.now().astimezone()
     current_program = None
 
     for program in publication:
@@ -320,7 +319,7 @@ def _get_program_info_v3(
             continue
 
     if not current_program:
-        print(f"[NHK v3] no currently broadcasting program found")
+        print("[NHK v3] no currently broadcasting program found")
         return None
 
     # Get broadcast event ID for detailed info

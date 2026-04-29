@@ -7,10 +7,11 @@ with specified time range.
 Author: Hiroyuki NAKAMURA (https://github.com/hry-naka)
 Date: May 30, 2023
 """
+
+import subprocess
 import sys
 import argparse
 import os
-from datetime import datetime as DT
 from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
 from mypkg.program import Program
@@ -38,13 +39,6 @@ def get_args() -> argparse.Namespace:
         required=True,
         nargs=1,
         help="Start time (format: YYYYMMDDHHmms)",
-    )
-    parser.add_argument(
-        "-to",
-        "--totime",
-        required=True,
-        nargs=1,
-        help="End time (format: YYYYMMDDHHmms)",
     )
     parser.add_argument(
         "prefix",
@@ -88,6 +82,24 @@ def fetch_program_info(
         return None
 
 
+def record_radiko_timefree(station, ft, output) -> bool:
+    url = f"https://radiko.jp/#!/ts/{station}/{ft}"
+    cmd = [
+        sys.executable,
+        "-m",
+        "yt_dlp",
+        "--audio-format",
+        "m4a",
+        "--audio-quality",
+        "0",
+        "-o",
+        output,
+        url,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.returncode == 0
+
+
 def main() -> None:
     """Main function for time-free Radiko recording.
 
@@ -97,7 +109,6 @@ def main() -> None:
     args = get_args()
     station = args.station[0]
     fromtime = args.fromtime[0]
-    totime = args.totime[0]
 
     # Format display time from time specification
     display_time = (
@@ -132,16 +143,6 @@ def main() -> None:
         )
         sys.exit(1)
 
-    # Authorize and get token
-    try:
-        auth_result = api_client.authorize()
-        if auth_result is None:
-            raise RuntimeError("Authorization failed")
-        auth_token, _ = auth_result
-    except Exception as e:
-        print(f"Error during authorization: {e}", file=sys.stderr)
-        sys.exit(1)
-
     # Create output directory if it doesn't exist
     if output_dir != ".":
         os.makedirs(output_dir, exist_ok=True)
@@ -159,27 +160,12 @@ def main() -> None:
 
     # Get stream URL for time-free playback
     try:
-        stream_url = (
-            f"https://radiko.jp/v2/api/ts/playlist.m3u8?"
-            f"station_id={station}&l=15&ft={fromtime}&to={totime}"
-        )
-
-        # Calculate recording duration in seconds
-        from_dt = DT.strptime(fromtime, "%Y%m%d%H%M%S")
-        to_dt = DT.strptime(totime, "%Y%m%d%H%M%S")
-        duration_seconds = int((to_dt - from_dt).total_seconds())
-
         # Generate output file path
         output_filename = f"{file_prefix}_{display_time}.mp4"
         output_file_path = os.path.join(output_dir, output_filename)
 
         # Record the stream
-        success = recorder.record_stream(
-            stream_url=stream_url,
-            auth_token=auth_token,
-            output_file=output_file_path,
-            duration=duration_seconds,
-        )
+        success = record_radiko_timefree(station, fromtime, output_file_path)
 
         if success:
             print(f"Successfully recorded: {output_file_path}")

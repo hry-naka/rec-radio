@@ -4,8 +4,8 @@
 
 This module searches for programs matching a keyword using the Radiko API.
 """
+
 import argparse
-import re
 import sys
 
 from mypkg.radiko_api import RadikoAPIClient
@@ -60,25 +60,15 @@ def main() -> None:
     print(f"Area ID: {area_id}")
     print()
 
-    results = client.search_programs(keyword=keyword, area_id=area_id)
+    results = client.search_past_week(keyword=keyword, area_id=area_id)
 
     # Display results
-    if not results or "data" not in results:
+    if not results:
         print("No programs found.")
         sys.exit(0)
 
-    for data in results["data"]:
-        title = data.get("title", "Unknown")
-        station_id = data.get("station_id", "")
-        start_time = re.sub(r"[-: ]", "", data.get("start_time", ""))
-        end_time = re.sub(r"[-: ]", "", data.get("end_time", ""))
-
-        print(
-            f"Title: {title}\t"
-            f"-s {station_id} "
-            f"-ft {start_time} "
-            f"-to {end_time}"
-        )
+    for r in results:
+        print(f"{r['title']} -s {r['station']} " f"-ft {r['ft']} ")
 
 
 if __name__ == "__main__":
