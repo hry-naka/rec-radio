@@ -57,7 +57,7 @@ def main() -> None:
         sys.exit(0)
 
     for r in results:
-        print(f"{r.title} -s {r.station} -ft {r.start_time}")
+        print(f"{r.title} \t: python ./tfrec_radiko.py -s {r.station} -ft {r.start_time}")
 
 
 if __name__ == "__main__":

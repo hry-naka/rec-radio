@@ -27,11 +27,11 @@ class ProgramFormatter:
             date_str: Date string (defaults to current date/time)
 
         Returns:
-            Generated filename with .mp4 extension
+            Generated filename with .m4a extension
         """
         if date_str is None:
             date_str = datetime.now().strftime("%Y-%m-%d-%H_%M")
-        return f"{prefix}_{date_str}.mp4"
+        return f"{prefix}_{date_str}.m4a"
 
     @staticmethod
     def format_title_with_performer(

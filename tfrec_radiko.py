@@ -134,7 +134,7 @@ def main() -> None:
     # Get stream URL for time-free playback
     try:
         # Generate output file path
-        output_filename = f"{file_prefix}_{display_time}.mp4"
+        output_filename = f"{file_prefix}_{display_time}.m4a"
         output_file_path = os.path.join(output_dir, output_filename)
 
         # Record the stream

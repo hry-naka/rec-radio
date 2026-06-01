@@ -383,7 +383,7 @@ def live_rec(
         print("  Install with: brew install ffmpeg coreutils")
         return None
 
-    output_path = f"{outdir}/{prefix}_{date}.mp4"
+    output_path = f"{outdir}/{prefix}_{date}.m4a"
 
     cmd = (
         f"{timeout} {duration + 20} "
