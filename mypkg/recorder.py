@@ -1,5 +1,7 @@
 """Audio recording module for Radiko streams using ffmpeg."""
 
+import importlib.util
+import sys
 import shlex
 import shutil
 import subprocess
@@ -15,22 +17,70 @@ from .program_formatter import ProgramFormatter
 class Recorder:
     """Handle audio recording and metadata management for MP4 files."""
 
+
     def __init__(self, loglevel: str = "warning"):
-        """Initialize recorder with ffmpeg configuration.
+        """Initialize recorder with configuration.
 
         Args:
             loglevel: ffmpeg loglevel (warning, error, info, etc.)
         """
         self.loglevel = loglevel
         self.ffmpeg_path = shutil.which("ffmpeg")
+        self.yt_dlp_spec = importlib.util.find_spec("yt_dlp")
 
-    def is_available(self) -> bool:
-        """Check if ffmpeg is available in PATH.
+    def is_available(self,service="radiko") -> bool:
+        """Check if required tools are available.
 
         Returns:
-            True if ffmpeg is available, False otherwise
+            True if both ffmpeg and yt_dlp are available, False otherwise
         """
-        return self.ffmpeg_path is not None
+        if(service=="radiko"):
+            has_yt_dlp = self.yt_dlp_spec is not None
+            return has_yt_dlp
+        else:
+            has_ffmpeg = self.ffmpeg_path is not None
+            return has_ffmpeg
+
+    def record_radiko_timefree(self,station, ft, output) -> bool:
+        url = f"https://radiko.jp/#!/ts/{station}/{ft}"
+        cmd = [
+            sys.executable,
+            "-m",
+            "yt_dlp",
+            "--audio-format",
+            "m4a",
+            "--audio-quality",
+            "0",
+            "-o",
+            output,
+            url,
+        ]
+        print( cmd, flush=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"Timefree Error:\n{result.stderr}",file=sys.stderr,)
+        return result.returncode == 0
+
+    def record_radiko_live(self,station, duration, output) -> bool:
+        url = f"https://radiko.jp/#!/live/{station}"
+        cmd = [
+            sys.executable,
+            "-m",
+            "yt_dlp",
+            "--download-sections", f"*0-{duration}",
+            "--audio-format",
+            "m4a",
+            "--audio-quality",
+            "0",
+            "-o",
+            output,
+            url,
+        ]
+        print( cmd, flush=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"Live Error:\n{result.stderr}",file=sys.stderr,) 
+        return result.returncode == 0
 
     def record_stream(
         self,

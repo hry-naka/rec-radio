@@ -15,11 +15,16 @@ Date: May 25, 2023
 import argparse
 import sys
 from datetime import datetime as DT
+from dotenv import load_dotenv
+import os
 
 from mypkg.program_formatter import ProgramFormatter
 from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
 
+# Load environment variables from .env file
+load_dotenv()
+AREA_CODE = os.getenv("AREA_CODE", "130")
 
 def get_args() -> argparse.Namespace:
     """Parse command-line arguments for Radiko recording.
@@ -74,31 +79,15 @@ def main() -> None:
     recorder = Recorder()
 
     # Validate recorder is available
-    if not recorder.is_available():
-        print("Error: ffmpeg is not available")
+    if not recorder.is_available("radiko"):
+        print("Error: yt_dlp is not available")
         sys.exit(1)
 
     # Validate channel availability
-    if not api_client.is_station_available(channel):
+    area_id = f"JP{AREA_CODE[:2]}"  # Use AREA_CODE from .env or default to JP13
+    if not api_client.is_station_available(channel, area_id):
         print(f"Error: Specified station '{channel}' is not found.")
         sys.exit(1)
-
-    # Authorize and get authentication token and area ID
-    auth_result = api_client.authorize()
-    if auth_result is None:
-        print("Error: Authorization failed")
-        sys.exit(1)
-
-    auth_token, area_id = auth_result
-    print(f"Authorization successful. Area ID: {area_id}")
-
-    # Retrieve stream URL
-    stream_url = api_client.get_stream_url(channel, auth_token)
-    if stream_url is None:
-        print("Error: Failed to retrieve stream URL")
-        sys.exit(1)
-
-    print(f"Stream URL: {stream_url}")
 
     # Fetch program information
     program = api_client.fetch_program(channel, fromtime, area_id, now=True)
@@ -117,23 +106,23 @@ def main() -> None:
 
     # Perform recording
     print(f"Recording {channel} for {duration} seconds " f"to {output_file}")
-    success = recorder.record_stream(stream_url, auth_token, output_file, duration)
+    success = recorder.record_radiko_live(channel, duration, output_file)
 
     if not success:
         print("Error: Recording failed")
         sys.exit(1)
-
-    print("Recording completed successfully")
-
-    # Set MP4 metadata if program information is available
-    if program is not None:
-        print("Setting metadata...")
-        if recorder.set_metadata(output_file, program):
-            print("Metadata set successfully")
-        else:
-            print("Warning: Failed to set metadata")
     else:
-        print("Skipping metadata (program info not available)")
+        print("Recording completed successfully")
+
+        # Set MP4 metadata if program information is available
+        if program is not None:
+            print("Setting metadata...")
+            if recorder.set_metadata(output_file, program):
+                print("Metadata set successfully")
+            else:
+                print("Warning: Failed to set metadata")
+        else:
+            print("Skipping metadata (program info not available)")
 
     print(f"Output file: {output_file}")
     sys.exit(0)

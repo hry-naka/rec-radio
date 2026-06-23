@@ -54,23 +54,6 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def record_radiko_timefree(station, ft, output) -> bool:
-    url = f"https://radiko.jp/#!/ts/{station}/{ft}"
-    cmd = [
-        sys.executable,
-        "-m",
-        "yt_dlp",
-        "--audio-format",
-        "m4a",
-        "--audio-quality",
-        "0",
-        "-o",
-        output,
-        url,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return result.returncode == 0
-
 
 def main() -> None:
     """Main function for time-free Radiko recording.
@@ -123,22 +106,22 @@ def main() -> None:
     # Initialize recorder
     recorder = Recorder()
 
-    # Check if ffmpeg is available
-    if not recorder.is_available():
+    # Check if yt_dlp is available
+    if not recorder.is_available("radiko"):
         print(
-            "Error: ffmpeg is not installed or not in executable path.",
+            "Error: yt_dlp is not installed or not in executable path.",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    # Get stream URL for time-free playback
+    # Record time-free playback
     try:
         # Generate output file path
         output_filename = f"{file_prefix}_{display_time}.m4a"
         output_file_path = os.path.join(output_dir, output_filename)
 
         # Record the stream
-        success = record_radiko_timefree(station, fromtime, output_file_path)
+        success = recorder.record_radiko_timefree(station, fromtime, output_file_path)
 
         if success:
             print(f"Successfully recorded: {output_file_path}")
