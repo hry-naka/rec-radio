@@ -33,10 +33,32 @@ class RadikoAPIClient:
     AUTH1_URL = "https://radiko.jp/v2/api/auth1"
     AUTH2_URL = "https://radiko.jp/v2/api/auth2"
     STREAM_URL = "https://f-radiko.smartstream.ne.jp/{}"
+    AREA_URL = "https://radiko.jp/v2/api/area"
 
     def __init__(self):
         """Initialize API client."""
         pass
+
+    def get_current_area_id(self) -> str:
+        """Get the current area ID based on the user's location."""
+        try:
+            # area_code get endpoint that Radiko uses for area detection
+            url = self.AREA_URL
+            headers = {"User-Agent": "Mozilla/5.0"}
+
+            # send request to get area information
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()  # 4xx, 5xx エラーがあれば例外を発生させる
+
+            # analyze the XML text of the response
+            root = ET.fromstring(response.text)
+
+            # retrieve area ID from <area id="JP13" name="TOKYO JAPAN">... 
+            return root.attrib.get("id", "JP13")
+
+        except Exception:
+            # if error, default error (timeout or network disconnection etc.) then return default JP13 (Tokyo)
+            return "JP13"
 
     def get_station_list(self, area_id: str = "JP13") -> Optional[ET.Element]:
         """Get the list of stations for the specified area.

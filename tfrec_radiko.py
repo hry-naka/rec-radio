@@ -12,14 +12,14 @@ import subprocess
 import sys
 import argparse
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
 from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
 
 # Load environment variables from .env file
-load_dotenv()
-AREA_CODE = os.getenv("AREA_CODE", "130")
+#load_dotenv()
+#AREA_CODE = os.getenv("AREA_CODE", "130")
 
 
 def get_args() -> argparse.Namespace:
@@ -91,7 +91,7 @@ def main() -> None:
     api_client = RadikoAPIClient()
 
     # Check if station is available
-    area_id = f"JP{AREA_CODE[:2]}"  # Use AREA_CODE from .env or default to JP13
+    area_id = api_client.get_current_area_id()  # Use the API to get the current area ID
     if not api_client.is_station_available(station, area_id):
         print(
             f"Error: Specified station '{station}' is not available.",

@@ -15,7 +15,7 @@ Date: May 25, 2023
 import argparse
 import sys
 from datetime import datetime as DT
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import os
 
 from mypkg.program_formatter import ProgramFormatter
@@ -23,8 +23,8 @@ from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
 
 # Load environment variables from .env file
-load_dotenv()
-AREA_CODE = os.getenv("AREA_CODE", "130")
+#load_dotenv()
+#AREA_CODE = os.getenv("AREA_CODE", "130")
 
 def get_args() -> argparse.Namespace:
     """Parse command-line arguments for Radiko recording.
@@ -84,7 +84,7 @@ def main() -> None:
         sys.exit(1)
 
     # Validate channel availability
-    area_id = f"JP{AREA_CODE[:2]}"  # Use AREA_CODE from .env or default to JP13
+    area_id = api_client.get_current_area_id()
     if not api_client.is_station_available(channel, area_id):
         print(f"Error: Specified station '{channel}' is not found.")
         sys.exit(1)
