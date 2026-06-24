@@ -68,20 +68,6 @@ NHK_XPATHS = {
 HTTP_TIMEOUT = (20, 5)
 REQUEST_TIMEOUT = 20
 
-# FFmpeg Configuration from .env
-#FFMPEG_LOGLEVEL = os.getenv("FFMPEG_LOGLEVEL", "warning")
-#FFMPEG_RECONNECT_DELAY_MAX = os.getenv("FFMPEG_RECONNECT_DELAY_MAX", "600")
-#FFMPEG_RW_TIMEOUT = os.getenv("FFMPEG_RW_TIMEOUT", "900000000")
-#FFMPEG_AUDIO_CODEC = os.getenv("FFMPEG_AUDIO_CODEC", "aac")
-#FFMPEG_AUDIO_BITRATE = os.getenv("FFMPEG_AUDIO_BITRATE", "96k")
-#FFMPEG_AUDIO_SAMPLE_RATE = os.getenv("FFMPEG_AUDIO_SAMPLE_RATE", "22050")
-#FFMPEG_EXTRA_OPTIONS = os.getenv(
-#    "FFMPEG_EXTRA_OPTIONS",
-#    "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
-#    "-live_start_index -2 -http_persistent 0",
-#)
-
-
 def get_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Recording NHK radio.")
@@ -531,7 +517,6 @@ def main() -> None:
 
     print(f"Successfully recorded: {output}")
     sys.exit(0)
-
 
 if __name__ == "__main__":
     main()
