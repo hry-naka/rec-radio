@@ -22,10 +22,6 @@ from mypkg.program_formatter import ProgramFormatter
 from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
 
-# Load environment variables from .env file
-#load_dotenv()
-#AREA_CODE = os.getenv("AREA_CODE", "130")
-
 def get_args() -> argparse.Namespace:
     """Parse command-line arguments for Radiko recording.
 
@@ -77,11 +73,6 @@ def main() -> None:
     # Initialize Radiko API client and recorder
     api_client = RadikoAPIClient()
     recorder = Recorder()
-
-    # Validate recorder is available
-    if not recorder.is_available("radiko"):
-        print("Error: yt_dlp is not available")
-        sys.exit(1)
 
     # Validate channel availability
     area_id = api_client.get_current_area_id()

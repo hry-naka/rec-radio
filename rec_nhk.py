@@ -21,6 +21,7 @@ from typing import Any, Dict, Optional, Tuple
 import requests
 from dotenv import load_dotenv
 from mutagen.mp4 import MP4, MP4Cover
+from mypkg.recorder import Recorder
 
 # Load environment variables from .env file
 load_dotenv()
@@ -68,17 +69,17 @@ HTTP_TIMEOUT = (20, 5)
 REQUEST_TIMEOUT = 20
 
 # FFmpeg Configuration from .env
-FFMPEG_LOGLEVEL = os.getenv("FFMPEG_LOGLEVEL", "warning")
-FFMPEG_RECONNECT_DELAY_MAX = os.getenv("FFMPEG_RECONNECT_DELAY_MAX", "600")
-FFMPEG_RW_TIMEOUT = os.getenv("FFMPEG_RW_TIMEOUT", "900000000")
-FFMPEG_AUDIO_CODEC = os.getenv("FFMPEG_AUDIO_CODEC", "aac")
-FFMPEG_AUDIO_BITRATE = os.getenv("FFMPEG_AUDIO_BITRATE", "96k")
-FFMPEG_AUDIO_SAMPLE_RATE = os.getenv("FFMPEG_AUDIO_SAMPLE_RATE", "22050")
-FFMPEG_EXTRA_OPTIONS = os.getenv(
-    "FFMPEG_EXTRA_OPTIONS",
-    "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
-    "-live_start_index -2 -http_persistent 0",
-)
+#FFMPEG_LOGLEVEL = os.getenv("FFMPEG_LOGLEVEL", "warning")
+#FFMPEG_RECONNECT_DELAY_MAX = os.getenv("FFMPEG_RECONNECT_DELAY_MAX", "600")
+#FFMPEG_RW_TIMEOUT = os.getenv("FFMPEG_RW_TIMEOUT", "900000000")
+#FFMPEG_AUDIO_CODEC = os.getenv("FFMPEG_AUDIO_CODEC", "aac")
+#FFMPEG_AUDIO_BITRATE = os.getenv("FFMPEG_AUDIO_BITRATE", "96k")
+#FFMPEG_AUDIO_SAMPLE_RATE = os.getenv("FFMPEG_AUDIO_SAMPLE_RATE", "22050")
+#FFMPEG_EXTRA_OPTIONS = os.getenv(
+#    "FFMPEG_EXTRA_OPTIONS",
+#    "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
+#    "-live_start_index -2 -http_persistent 0",
+#)
 
 
 def get_args() -> argparse.Namespace:
@@ -351,76 +352,6 @@ def _get_program_info_v3(
 
     return info_json
 
-
-def live_rec(
-    dl_url: str,
-    duration: int,
-    outdir: str,
-    prefix: str,
-    date: str,
-) -> Optional[str]:
-    """Perform live recording using ffmpeg with timeout.
-
-    Args:
-        dl_url: HLS stream URL
-        duration: Recording duration in seconds
-        outdir: Output directory
-        prefix: Output file prefix
-        date: Date string for filename
-
-    Returns:
-        Path to recorded file or None on failure
-    """
-    ffmpeg = shutil.which("ffmpeg")
-    timeout = shutil.which("timeout")
-
-    # Mac compatibility: use gtimeout if timeout not available
-    if timeout is None:
-        timeout = shutil.which("gtimeout")
-
-    if ffmpeg is None or timeout is None:
-        print("Error: ffmpeg and timeout must be installed and " "in PATH")
-        print("  Install with: brew install ffmpeg coreutils")
-        return None
-
-    output_path = f"{outdir}/{prefix}_{date}.m4a"
-
-    cmd = (
-        f"{timeout} {duration + 20} "
-        f"{ffmpeg} -loglevel {FFMPEG_LOGLEVEL} -y "
-        "-nostdin -re "
-        f"{FFMPEG_EXTRA_OPTIONS} "
-        f"-reconnect_delay_max {FFMPEG_RECONNECT_DELAY_MAX} "
-        f"-rw_timeout {FFMPEG_RW_TIMEOUT} "
-        "-user_agent "
-        '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-        'AppleWebKit/537.36" '
-        f"-i {dl_url} -t {duration + 5} "
-        f"-vn -c:a {FFMPEG_AUDIO_CODEC} "
-        f"-b:a {FFMPEG_AUDIO_BITRATE} "
-        f"-ar {FFMPEG_AUDIO_SAMPLE_RATE} "
-        f"{output_path}"
-    )
-
-    print(cmd, flush=True)
-
-    try:
-        result = subprocess.run(
-            shlex.split(cmd),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        print(result.stdout, flush=True)
-        print(result.stderr, flush=True)
-        return output_path
-    except subprocess.CalledProcessError as e:
-        print(f"Error: ffmpeg failed with return code {e.returncode}")
-        print(e.stdout, flush=True)
-        print(e.stderr, flush=True)
-        return None
-
-
 def get_largest_logourl(program: Dict[str, Any]) -> Optional[str]:
     """Get the largest logo image URL associated with the program.
 
@@ -459,7 +390,6 @@ def get_largest_logourl(program: Dict[str, Any]) -> Optional[str]:
             if not url.startswith("https"):
                 return f"https:{url}"
             return url
-
     return None
 
 
@@ -562,6 +492,7 @@ def main() -> None:
     outdir = args.outputdir
     prefix = args.prefix if args.prefix else channel
     target_time = DT.now().astimezone() + timedelta(seconds=duration / 2)
+    recorder = Recorder()
 
     # Get stream URL
     stream_result = get_streamurl(channel, LOCATION)
@@ -578,10 +509,12 @@ def main() -> None:
 
     # Perform recording
     date = DT.now().strftime("%Y-%m-%d-%H_%M")
-    rec_file = live_rec(dl_url, duration, outdir, prefix, date)
-    if rec_file is None:
+    output = f"{outdir}/{prefix}_{date}.m4a"
+    success = recorder.record_nhk_live(dl_url, duration, output, prefix, date)
+    if not success:
         print("Error: Recording failed")
         sys.exit(1)
+
 
     # retry after recording
     if program is None:
@@ -592,11 +525,11 @@ def main() -> None:
 
     # Set metadata
     try:
-        set_mp4_meta(program, channel, rec_file)
+        set_mp4_meta(program, channel, output)
     except Exception as e:
         print(f"Warning: Failed to set MP4 metadata: {e}")
 
-    print(f"Successfully recorded: {rec_file}")
+    print(f"Successfully recorded: {output}")
     sys.exit(0)
 
 

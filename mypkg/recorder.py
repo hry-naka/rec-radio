@@ -1,6 +1,7 @@
 """Audio recording module for Radiko streams using ffmpeg."""
 
 import importlib.util
+import os
 import sys
 import shlex
 import shutil
@@ -17,18 +18,31 @@ from .program_formatter import ProgramFormatter
 class Recorder:
     """Handle audio recording and metadata management for MP4 files."""
 
+    def __init__(
+        self,
+        loglevel: Optional[str] = None,
+        reconnect_delay_max: Optional[str] = None,
+        rw_timeout: Optional[str] = None,
+        audio_codec: Optional[str] = None,
+        audio_bitrate: Optional[str] = None,
+        audio_sample_rate: Optional[str] = None,
+        extra_options: Optional[str] = None
+    ):
+        # load environment variables from .env file, if not specified in constructor
+        self.loglevel = loglevel or os.getenv("FFMPEG_LOGLEVEL", "warning")
+        self.reconnect_delay_max = reconnect_delay_max or os.getenv("FFMPEG_RECONNECT_DELAY_MAX", "600")
+        self.rw_timeout = rw_timeout or os.getenv("FFMPEG_RW_TIMEOUT", "900000000")
+        self.audio_codec = audio_codec or os.getenv("FFMPEG_AUDIO_CODEC", "aac")
+        self.audio_bitrate = audio_bitrate or os.getenv("FFMPEG_AUDIO_BITRATE", "96k")
+        self.audio_sample_rate = audio_sample_rate or os.getenv("FFMPEG_AUDIO_SAMPLE_RATE", "22050")
+        default_extra = "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 -live_start_index -2 -http_persistent 0"
+        self.extra_options = extra_options or os.getenv("FFMPEG_EXTRA_OPTIONS", default_extra)
 
-    def __init__(self, loglevel: str = "warning"):
-        """Initialize recorder with configuration.
-
-        Args:
-            loglevel: ffmpeg loglevel (warning, error, info, etc.)
-        """
-        self.loglevel = loglevel
         self.ffmpeg_path = shutil.which("ffmpeg")
+        self.timeout_path = shutil.which("timeout") or shutil.which("gtimeout")
         self.yt_dlp_spec = importlib.util.find_spec("yt_dlp")
 
-    def is_available(self,service="radiko") -> bool:
+    def _is_available(self,service="radiko") -> bool:
         """Check if required tools are available.
 
         Returns:
@@ -38,106 +52,111 @@ class Recorder:
             has_yt_dlp = self.yt_dlp_spec is not None
             return has_yt_dlp
         else:
-            has_ffmpeg = self.ffmpeg_path is not None
+            has_ffmpeg = self.ffmpeg_path is not None or self.timeout_path is not None
             return has_ffmpeg
 
     def record_radiko_timefree(self,station, ft, output) -> bool:
+        if not self._is_available("radiko"):
+            print("Error: yt_dlp must be installed and available in PATH")
+            return False
         url = f"https://radiko.jp/#!/ts/{station}/{ft}"
+        output_tmpl = output.replace(".m4a", ".%(ext)s")
         cmd = [
             sys.executable,
             "-m",
             "yt_dlp",
-            "--audio-format",
-            "m4a",
-            "--audio-quality",
-            "0",
-            "-o",
-            output,
+            "-q", "--no-warnings", "--progress", "-x",
+            "--external-downloader-args", f"ffmpeg:-loglevel {self.loglevel}",
+            "--postprocessor-args", f"ffmpeg:-loglevel {self.loglevel}",
+            "--audio-format", "m4a",
+            "--audio-quality", "0",
+            "-o",output_tmpl,
             url,
         ]
         print( cmd, flush=True)
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Timefree Error:\n{result.stderr}",file=sys.stderr,)
-        return result.returncode == 0
+        try:
+            subprocess.run(cmd, check=True)
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Radiko Timefree Rec. Error:\n{e.stderr}", file=sys.stderr)
+            return False
 
     def record_radiko_live(self,station, duration, output) -> bool:
+        if not self._is_available("radiko"):
+            print("Error: yt_dlp must be installed and available in PATH")
+            return False
         url = f"https://radiko.jp/#!/live/{station}"
+        output_tmpl = output.replace(".m4a", ".%(ext)s")
         cmd = [
             sys.executable,
             "-m",
             "yt_dlp",
+            "-q", "--no-warnings", "--progress", "-x",
+            "--external-downloader-args", f"ffmpeg:-loglevel {self.loglevel}",
+            "--postprocessor-args", f"ffmpeg:-loglevel {self.loglevel}",
             "--download-sections", f"*0-{duration}",
-            "--audio-format",
-            "m4a",
-            "--audio-quality",
-            "0",
-            "-o",
-            output,
+            "--audio-format", "m4a",
+            "--audio-quality", "0",
+            "-o", output_tmpl,
             url,
         ]
         print( cmd, flush=True)
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Live Error:\n{result.stderr}",file=sys.stderr,) 
-        return result.returncode == 0
+        try:
+            subprocess.run(cmd, check=True)
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Radiko Live Rec. Error:\n{e.stderr}", file=sys.stderr)
+            return False
 
-    def record_stream(
+    def record_nhk_live(
         self,
-        stream_url: str,
-        auth_token: str,
-        output_file: str,
+        dl_url: str,
         duration: int,
+        output: str,
+        prefix: str,
+        date: str,
     ) -> bool:
-        """Record audio from Radiko stream using ffmpeg.
+        """Perform live recording using ffmpeg with timeout.
 
         Args:
-            stream_url: M3U8 stream URL
-            auth_token: Radiko authentication token
-            output_file: Output MP4 file path
+            dl_url: HLS stream URL
             duration: Recording duration in seconds
+            outdir: Output directory
+            prefix: Output file prefix
+            date: Date string for filename
 
         Returns:
             True if recording succeeded, False otherwise
         """
-        if not self.is_available():
-            print("Error: ffmpeg must be installed and available in PATH")
+        if self._is_available("nhk") is False:
+            print("Error: ffmpeg and timeout must be installed and in PATH")
             return False
-
-        # Build ffmpeg command with reconnection and auth headers
-        # Use proper line ending format for HTTP headers
-        cmd = (
-            f"{self.ffmpeg_path} -loglevel {self.loglevel} -y "
-            "-reconnect 1 -reconnect_at_eof 0 -reconnect_streamed 1 "
-            "-reconnect_delay_max 600 "
-            '-user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36" '
-            f'-headers "X-Radiko-AuthToken: {auth_token}\r\n" '
-            f'-i "{stream_url}" '
-            f"-t {duration} -acodec copy {output_file}"
-        )
-
-        print(f"Recording command: {cmd}", flush=True)
-
+        cmd = [
+            self.timeout_path,
+            str(duration + 20),
+            self.ffmpeg_path,
+            "-loglevel", self.loglevel,
+            "-y",
+            "-nostdin",
+            "-re",
+            *self.extra_options.split(),
+            "-reconnect_delay_max", self.reconnect_delay_max,
+            "-rw_timeout", self.rw_timeout,
+            "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "-i", dl_url,
+            "-t", str(duration + 5),
+            "-vn",
+            "-c:a", self.audio_codec,
+            "-b:a", self.audio_bitrate,
+            "-ar", self.audio_sample_rate,
+            output,
+        ]
+        print(cmd, flush=True)
         try:
-            result = subprocess.run(
-                shlex.split(cmd),
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            print(result.stdout, flush=True)
-            if result.stderr:
-                print(result.stderr, flush=True)
+            subprocess.run(cmd, check=True)
             return True
         except subprocess.CalledProcessError as e:
-            print(
-                f"Recording failed with return code {e.returncode}",
-                flush=True,
-            )
-            print(e.stdout, flush=True)
-            if e.stderr:
-                print(e.stderr, flush=True)
+            print(f"Error: ffmpeg failed with return code {e.returncode}")
             return False
 
     def set_metadata(

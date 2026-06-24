@@ -106,14 +106,6 @@ def main() -> None:
     # Initialize recorder
     recorder = Recorder()
 
-    # Check if yt_dlp is available
-    if not recorder.is_available("radiko"):
-        print(
-            "Error: yt_dlp is not installed or not in executable path.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
     # Record time-free playback
     try:
         # Generate output file path
@@ -148,7 +140,6 @@ def main() -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
-
     except Exception as e:
         print(f"Error during recording: {e}", file=sys.stderr)
         sys.exit(1)
