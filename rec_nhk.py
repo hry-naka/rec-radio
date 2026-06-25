@@ -223,13 +223,6 @@ def main() -> None:
     recorder = Recorder()
     api_client = NhkAPIClient(NHK_API_KEY, LOCATION, AREA_CODE, code, API_VERSION)
 
-    # Get stream URL
-    print( f"Retrieving stream URL for code={code}, location={LOCATION}")
-    dl_url = api_client.get_streamurl()
-    if dl_url is None:
-        print("Error: Failed to retrieve stream URL")
-        sys.exit(1)
-
     # Get program information
     program = api_client.get_program_info(target_time)
     if program is None:
@@ -238,7 +231,7 @@ def main() -> None:
     # Perform recording
     date = DT.now().strftime("%Y-%m-%d-%H_%M")
     output = f"{outdir}/{prefix}_{date}.m4a"
-    success = recorder.record_nhk_live(dl_url, duration, output, prefix, date)
+    success = recorder.record_nhk_live(api_client, duration, output, prefix, date)
     if not success:
         print("Error: Recording failed")
         sys.exit(1)

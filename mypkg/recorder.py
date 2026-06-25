@@ -13,8 +13,7 @@ from mutagen.mp4 import MP4, MP4Cover
 
 from .program import Program
 from .program_formatter import ProgramFormatter
-
-
+from .nhk_api import NhkAPIClient
 class Recorder:
     """Handle audio recording and metadata management for MP4 files."""
 
@@ -110,7 +109,7 @@ class Recorder:
 
     def record_nhk_live(
         self,
-        dl_url: str,
+        nhk_apiclient: NhkAPIClient,
         duration: int,
         output: str,
         prefix: str,
@@ -119,7 +118,7 @@ class Recorder:
         """Perform live recording using ffmpeg with timeout.
 
         Args:
-            dl_url: HLS stream URL
+            nhk_apiclient: NhkAPIClient instance
             duration: Recording duration in seconds
             outdir: Output directory
             prefix: Output file prefix
@@ -130,6 +129,10 @@ class Recorder:
         """
         if self._is_available("nhk") is False:
             print("Error: ffmpeg and timeout must be installed and in PATH")
+            return False
+        url = nhk_apiclient.get_streamurl()
+        if url is None:
+            print("Error: Failed to retrieve NHK stream URL")
             return False
         cmd = [
             self.timeout_path,
@@ -143,7 +146,7 @@ class Recorder:
             "-reconnect_delay_max", self.reconnect_delay_max,
             "-rw_timeout", self.rw_timeout,
             "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "-i", dl_url,
+            "-i", url,
             "-t", str(duration + 5),
             "-vn",
             "-c:a", self.audio_codec,
