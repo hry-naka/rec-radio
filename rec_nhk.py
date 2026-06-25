@@ -22,6 +22,7 @@ import requests
 from dotenv import load_dotenv
 from mutagen.mp4 import MP4, MP4Cover
 from mypkg.recorder import Recorder
+from mypkg.nhk_api import NhkAPIClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,24 +33,10 @@ if not NHK_API_KEY:
     print("Error: NHK_API_KEY not found in environment. " "Please set it in .env file.")
     sys.exit(1)
 
-API_VERSION = os.getenv("API_VERSION", "v2")
-if API_VERSION not in ("v2", "v3"):
-    print(f"Error: API_VERSION must be 'v2' or 'v3', got '{API_VERSION}'")
-    sys.exit(1)
-
+API_VERSION = os.getenv("API_VERSION", "v3")
 LOCATION = os.getenv("LOCATION", "tokyo")
 AREA_CODE = os.getenv("AREA_CODE", "130")
-NHK_STREAM_URL = "https://www.nhk.or.jp/radio/config/config_web.xml"
-NHK_API_V2_NOW = "http://api.nhk.or.jp/v2/pg/now/{}/{}.json?key={}"
-NHK_API_V2_INFO = "http://api.nhk.or.jp/v2/pg/info/{}/{}/{}.json?key={}"
-NHK_API_V3_NOW = (
-    "https://program-api.nhk.jp/v3/papiPgNowRadio"
-    "?service={service}&area={area}&key={key}"
-)
-NHK_API_V3_INFO = (
-    "https://program-api.nhk.jp/v3/papiBroadcastEventRadio"
-    "?broadcastEventId={broadcastEventId}&key={key}"
-)
+
 NHK_ALBUM_NAMES = {
     "NHK1": "NHKラジオ第一",
     "NHK2": "NHKラジオ第二",
@@ -60,11 +47,7 @@ NHK_STREAM_CODES = {
     "NHK2": "r2",
     "FM": "r3",
 }
-NHK_XPATHS = {
-    "NHK1": ".//stream_url/data/r1hls",
-    "NHK2": ".//stream_url/data/r2hls",
-    "FM": ".//stream_url/data/fmhls",
-}
+
 HTTP_TIMEOUT = (20, 5)
 REQUEST_TIMEOUT = 20
 
@@ -92,251 +75,6 @@ def get_args() -> argparse.Namespace:
         help="Prefix name for output file.",
     )
     return parser.parse_args()
-
-
-def get_streamurl(channel: str, location: str) -> Optional[Tuple[str, str]]:
-    """Retrieve HLS stream URL and channel code from NHK XML config.
-
-    Args:
-        channel: Channel name (NHK1, NHK2, FM)
-        location: Geographic location (e.g., 'tokyo')
-
-    Returns:
-        Tuple of (stream_url, channel_code) or None if not found
-    """
-    if channel not in NHK_STREAM_CODES:
-        print(f"Error: Channel '{channel}' doesn't exist")
-        return None
-
-    try:
-        response = requests.get(NHK_STREAM_URL, timeout=HTTP_TIMEOUT)
-        response.raise_for_status()
-        root = ET.fromstring(response.content)
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching NHK stream config: {e}")
-        return None
-    except ET.ParseError as e:
-        print(f"Error parsing NHK stream config XML: {e}")
-        return None
-
-    xpath = NHK_XPATHS[channel]
-    code = NHK_STREAM_CODES[channel]
-
-    # Find the stream URL for the specified location
-    for child in root.findall(".//stream_url/data/*"):
-        if child.tag == "area" and child.text == location:
-            stream_url = root.findtext(xpath)
-            if stream_url:
-                return stream_url, code
-
-    print(f"Error: No stream URL found for channel={channel}, " f"location={location}")
-    return None
-
-
-def get_program_info(
-    area_code: str, code: str, target_time: DT
-) -> Optional[Dict[str, Any]]:
-    """Get program information from NHK API with error handling.
-
-    Args:
-        area_code: Area code (e.g., "130" for Tokyo)
-        code: Channel code (e.g., "r1", "r2", "r3")
-        timing: Timing option ("present", "previous", "following")
-
-    Returns:
-        Program info dict or None if not available
-    """
-    if API_VERSION == "v3":
-        return _get_program_info_v3(area_code, code, target_time)
-    else:
-        return _get_program_info_v2(area_code, code, "present")
-
-
-def _get_program_info_v2(
-    area_code: str, code: str, timing: str
-) -> Optional[Dict[str, Any]]:
-    """Get program information from NHK API v2 with error handling.
-
-    Args:
-        area_code: Area code (e.g., "130" for Tokyo)
-        code: Channel code (e.g., "r1", "r2", "r3")
-        timing: Timing option ("present", "previous", "following")
-
-    Returns:
-        Program info dict or None if not available
-    """
-    # Fetch current on-air program
-    now_url = NHK_API_V2_NOW.format(area_code, code, NHK_API_KEY)
-
-    try:
-        resp = requests.get(now_url, timeout=HTTP_TIMEOUT)
-        resp.raise_for_status()
-        now_json = resp.json()
-    except requests.exceptions.RequestException as e:
-        print(f"[NHK] now API request error: {e}")
-        return None
-    except json.JSONDecodeError as e:
-        print(f"[NHK] now API JSON decode error: {e}")
-        return None
-
-    # Validate structure
-    nol = now_json.get("nowonair_list")
-    if nol is None:
-        print("[NHK] nowonair_list is None (no program info currently)")
-        return None
-
-    station = nol.get(code)
-    if station is None:
-        print(f"[NHK] nowonair_list has no entry for code='{code}'")
-        return None
-
-    # Select timing entry
-    chosen = station.get(timing)
-    if not chosen or not isinstance(chosen, dict):
-        print(f"[NHK] timing='{timing}' entry is missing or invalid")
-        return None
-
-    program_id = chosen.get("id")
-    if not program_id:
-        print(f"[NHK] timing='{timing}' has no 'id'")
-        return None
-
-    # Fetch program details
-    info_url = NHK_API_V2_INFO.format(area_code, code, program_id, NHK_API_KEY)
-
-    try:
-        info_resp = requests.get(info_url, timeout=HTTP_TIMEOUT)
-        info_resp.raise_for_status()
-        info_json = info_resp.json()
-    except requests.exceptions.RequestException as e:
-        print(f"[NHK] info API request error: {e}")
-        return None
-    except json.JSONDecodeError as e:
-        print(f"[NHK] info API JSON decode error: {e}")
-        return None
-
-    # Extract program info
-    program_list = info_json.get("list", {}).get(code)
-    if not program_list:
-        print(f"[NHK] info API returned no 'list[{code}]'")
-        return None
-
-    # Handle both list and dict responses
-    program = program_list[0] if isinstance(program_list, list) else program_list
-    if not program:
-        print(f"[NHK] empty program detail for id={program_id}")
-        return None
-
-    # Verify program time validity
-    try:
-        now = DT.now().astimezone()
-        start_dt = DT.fromisoformat(
-            program.get("start_time", "").replace("Z", "+00:00")
-        )
-        end_dt = DT.fromisoformat(program.get("end_time", "").replace("Z", "+00:00"))
-
-        if start_dt <= now <= end_dt:
-            p_title = program.get("title")
-            p_area = program.get("area", {}).get("name", "unknown")
-            print(
-                f"[NHK] {timing}: id={program_id} " f"title={p_title!r} area={p_area}"
-            )
-            return program
-        else:
-            print(
-                f"[NHK] current time {now.isoformat()} "
-                f"outside program window "
-                f"{start_dt.isoformat()}-{end_dt.isoformat()}"
-            )
-            return None
-    except (ValueError, AttributeError) as e:
-        print(f"[NHK] time parse error: {e}")
-        return None
-
-
-def _get_program_info_v3(
-    area_code: str, code: str, target_time: DT
-) -> Optional[Dict[str, Any]]:
-    """Get program information from NHK API v3 with error handling."""
-    # today = DT.now().strftime("%Y-%m-%d")
-    # now_url = NHK_API_V3_NOW.format(
-    #    service=code, area=area_code, date=today, key=NHK_API_KEY
-    # )
-    now_url = NHK_API_V3_NOW.format(service=code, area=area_code, key=NHK_API_KEY)
-
-    try:
-        resp = requests.get(now_url, timeout=HTTP_TIMEOUT)
-        resp.raise_for_status()
-        now_json = resp.json()
-    except requests.exceptions.RequestException as e:
-        print(f"[NHK v3] now API request error: {e}")
-        return None
-    except json.JSONDecodeError as e:
-        print(f"[NHK v3] now API JSON decode error: {e}")
-        return None
-
-    # Extract publication list
-    if code not in now_json:
-        print(f"[NHK v3] no program data for {code} now")
-        return None
-
-    service_data = now_json.get(code, {})
-    publication = service_data.get("publication", [])
-
-    if not publication:
-        print(f"[NHK v3] no program data for {code} now")
-        return None
-
-    # Find currently broadcasting program
-    # now = DT.now().astimezone()
-    current_program = None
-
-    for program in publication:
-        try:
-            start_dt = DT.fromisoformat(
-                program.get("startDate", "").replace("Z", "+00:00")
-            )
-            end_dt = DT.fromisoformat(program.get("endDate", "").replace("Z", "+00:00"))
-
-            if start_dt <= target_time <= end_dt:
-                current_program = program
-                break
-        except (ValueError, AttributeError) as e:
-            print(f"[NHK v3] time parse error: {e}")
-            continue
-
-    if not current_program:
-        print("[NHK v3] no currently broadcasting program found")
-        return None
-
-    # Get broadcast event ID for detailed info
-    event_id = current_program.get("id")
-    if not event_id:
-        print("[NHK v3] program has no 'id' field")
-        return None
-
-    # Fetch detailed program information
-    info_url = NHK_API_V3_INFO.format(broadcastEventId=event_id, key=NHK_API_KEY)
-
-    try:
-        info_resp = requests.get(info_url, timeout=HTTP_TIMEOUT)
-        info_resp.raise_for_status()
-        info_json = info_resp.json()
-    except requests.exceptions.RequestException as e:
-        print(f"[NHK v3] info API request error: {e}")
-        # Return basic info if detail fetch fails
-        p_title = current_program.get("name")
-        print(f"[NHK v3] current: id={event_id} title={p_title!r}")
-        return current_program
-    except json.JSONDecodeError as e:
-        print(f"[NHK v3] info API JSON decode error: {e}")
-        return current_program
-
-    # Return detailed program info
-    p_title = info_json.get("name")
-    print(f"[NHK v3] current: id={event_id} title={p_title!r}")
-
-    return info_json
 
 def get_largest_logourl(program: Dict[str, Any]) -> Optional[str]:
     """Get the largest logo image URL associated with the program.
@@ -404,7 +142,7 @@ def set_mp4_meta(
         audio.tags["\xa9nam"] = title
 
     # Album (station name)
-    audio.tags["\xa9alb"] = NHK_ALBUM_NAMES.get(channel, channel)
+    audio.tags["\xa9alb"] = NHK_ALBUM_NAMES.get(channel)
 
     # Artist (cast/performers)
     # v3: misc.actList[], v2: act
@@ -474,22 +212,26 @@ def main() -> None:
     """Main function for NHK radio recording."""
     args = get_args()
     channel = args.channel
+    code = NHK_STREAM_CODES.get(channel)
+    if code is None:
+        print(f"Error: Invalid channel '{channel}'. Valid channels are: {list(NHK_STREAM_CODES.keys())}")
+        sys.exit(1)
     duration = int(args.duration * 60)
     outdir = args.outputdir
     prefix = args.prefix if args.prefix else channel
     target_time = DT.now().astimezone() + timedelta(seconds=duration / 2)
     recorder = Recorder()
+    api_client = NhkAPIClient(NHK_API_KEY, LOCATION, AREA_CODE, code, API_VERSION)
 
     # Get stream URL
-    stream_result = get_streamurl(channel, LOCATION)
-    if stream_result is None:
+    print( f"Retrieving stream URL for code={code}, location={LOCATION}")
+    dl_url = api_client.get_streamurl()
+    if dl_url is None:
         print("Error: Failed to retrieve stream URL")
         sys.exit(1)
 
-    dl_url, code = stream_result
-
-    # Get program information (always "present" for v3)
-    program = get_program_info(AREA_CODE, code, target_time)
+    # Get program information
+    program = api_client.get_program_info(target_time)
     if program is None:
         print("Error: No program information available")
 
@@ -501,11 +243,10 @@ def main() -> None:
         print("Error: Recording failed")
         sys.exit(1)
 
-
     # retry after recording
     if program is None:
         print("Retry getting program info.")
-        program = get_program_info(AREA_CODE, code, target_time)
+        program = api_client.get_program_info(target_time)
     else:
         print("Retry skipped.")
 
