@@ -17,11 +17,6 @@ import os
 from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
 
-# Load environment variables from .env file
-#load_dotenv()
-#AREA_CODE = os.getenv("AREA_CODE", "130")
-
-
 def get_args() -> argparse.Namespace:
     """Parse command-line arguments.
 
@@ -52,8 +47,6 @@ def get_args() -> argparse.Namespace:
         help="Prefix name for output file or output directory.",
     )
     return parser.parse_args()
-
-
 
 def main() -> None:
     """Main function for time-free Radiko recording.

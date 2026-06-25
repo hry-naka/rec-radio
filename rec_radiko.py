@@ -15,7 +15,6 @@ Date: May 25, 2023
 import argparse
 import sys
 from datetime import datetime as DT
-#from dotenv import load_dotenv
 import os
 
 from mypkg.program_formatter import ProgramFormatter
