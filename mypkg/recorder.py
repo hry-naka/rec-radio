@@ -9,7 +9,6 @@ import subprocess
 from typing import Optional
 
 import requests
-from mutagen.mp4 import MP4, MP4Cover
 
 from .program import Program
 from .program_formatter import ProgramFormatter
@@ -178,6 +177,16 @@ class Recorder:
         Returns:
             True if metadata was set successfully, False otherwise
         """
+        try:
+            from mutagen.mp4 import MP4
+        except ImportError:
+            print("Warning: mutagen is not installed. Skipping metadata.")
+            return False
+
+        if not os.path.exists(file_path):
+            print(f"Error: File not found: {file_path}")
+            return False
+            
         try:
             audio = MP4(audio_file)
 
