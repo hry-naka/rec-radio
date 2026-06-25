@@ -178,15 +178,15 @@ class Recorder:
             True if metadata was set successfully, False otherwise
         """
         try:
-            from mutagen.mp4 import MP4
+            from mutagen.mp4 import MP4, MP4Cover
         except ImportError:
             print("Warning: mutagen is not installed. Skipping metadata.")
             return False
 
-        if not os.path.exists(file_path):
-            print(f"Error: File not found: {file_path}")
+        if not os.path.exists(audio_file):
+            print(f"Error: File not found: {audio_file}")
             return False
-            
+
         try:
             audio = MP4(audio_file)
 
