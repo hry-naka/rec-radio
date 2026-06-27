@@ -139,6 +139,27 @@ class RadikoAPIClient:
                 parts.append(child.tail)
         return "".join(parts)
 
+
+    def _get_genre_from_xml(self, genre_element: ET.Element) -> str:
+        
+        """get string from <genre> tag
+        
+        Args:
+            genre_element: ET.Element object of <genre>
+        Returns:
+            string separated by space
+        """
+        if genre_element is None:
+            return ""
+
+        genres = []
+        for child in genre_element:
+            name_element = child.find("name")
+            if name_element is not None and name_element.text:
+                genres.append(name_element.text.strip())
+        return " ".join(genres)
+
+
     def _extract_program_from_xml(
         self,
         root: ET.Element,
@@ -161,6 +182,7 @@ class RadikoAPIClient:
 
         title_elem = prog_elem.find("title")
         pfm_elem = prog_elem.find("pfm")
+        genre_elem = prog_elem.find("genre")
         desc_elem = prog_elem.find("desc")
         info_elem = prog_elem.find("info")
         img_elem = prog_elem.find("img")
@@ -168,6 +190,7 @@ class RadikoAPIClient:
 
         title = self._gettext(title_elem)
         performer = self._gettext(pfm_elem)
+        genre = self._get_genre_from_xml(genre_elem)
         description = self._gettext(desc_elem)
         info = self._gettext(info_elem)
         image_url = self._gettext(img_elem)
@@ -180,6 +203,7 @@ class RadikoAPIClient:
         return Program(
             title=title,
             station=station,
+            genre=genre,
             area="JP13",  # Default, could be parameterized
             start_time=ft_attr,
             end_time=to_attr,
