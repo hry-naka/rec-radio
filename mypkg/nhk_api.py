@@ -1,14 +1,11 @@
 import json
-import os
-import shlex
-import shutil
-import subprocess
-import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime as DT, timedelta
-from typing import Any, Dict, Optional, Tuple
+from datetime import datetime as DT
+from typing import Any, Dict, Optional
 
 import requests
+
+from .program import Program
 
 class NhkAPIClient:
     def __init__(self, api_key: str, location: str, area_code: str, code: str, api_version: str = "v3"):
@@ -71,6 +68,226 @@ class NhkAPIClient:
                     return stream_url
         print(f"Error: No stream URL found for channel={self.code}, " f"location={self.location}")
         return None
+
+    def _get_title(self, program: Dict[str, Any]) -> str:
+        """Get the title of the program, falling back to 'name' if 'title' is not available.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Title of the program or 'name' if 'title' is not available
+        """
+        # fallback(default) title
+        fallback_title = program.get("name", "Unknown Program")
+        # get safer list of audio information
+        audio_list = program.get("about", {}).get("audio")
+        # if audio_list is empty or None, return fallback title
+        if not audio_list:
+            return fallback_title
+        # get title from the first audio entry, if available
+        title = audio_list[0].get("name")
+        return title if title else fallback_title
+
+    def _get_station(self, program: Dict[str, Any]) -> Optional[str]:
+        """Get the station code of the program.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Station code of the program
+        """
+        service_name = program.get("publishedOn", {}).get("broadcastDisplayName", {})
+        return service_name if service_name else None
+
+    
+    def _get_description(self, program: Dict[str, Any]) ->  Optional[str]:
+        """Get the description of the program.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Description of the program
+        """
+        fallback_description = program.get("description", {})
+        description = program.get("about", {}).get("partOfSeries",{}).get("description", fallback_description)
+        return description if description else None
+    
+    def _get_subtitle(self, program: Dict[str, Any]) -> Optional[str]:
+        """Get the subtitle of the program.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Subtitle of the program or None if not available
+        """
+        subtitle = program.get("about", {}).get("partOfSeries", {}).get("detailedCatch")
+        return subtitle if subtitle else None
+    
+    def _get_start_time(self, program: Dict[str, Any]) -> Optional[str]:
+        """Get the start time of the program in "YYYYMMDDHHMMSS" format.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Start time of the program or None if not available
+        """
+        start_time = program.get("startDate")
+        if start_time:
+            try:
+                dt = DT.fromisoformat(start_time.replace("Z", "+00:00"))
+                return dt.strftime("%Y%m%d%H%M%S")
+            except ValueError:
+                print(f"Error parsing start time: {start_time}")
+                return None
+        return None
+
+    def _get_end_time(self, program: Dict[str, Any]) -> Optional[str]:
+        """Get the end time of the program in "YYYYMMDDHHMMSS" format.
+
+        Args:
+            program: Program info dict
+        Returns:
+            End time of the program or None if not available
+        """
+        end_time = program.get("endDate")
+        if end_time:
+            try:
+                dt = DT.fromisoformat(end_time.replace("Z", "+00:00"))
+                return dt.strftime("%Y%m%d%H%M%S")
+            except ValueError:
+                print(f"Error parsing end time: {end_time}")
+                return None
+        return None
+
+    def _convert_iso_duration(self, duration_str: str) -> int:
+        """
+        Convert ISO 8601 duration strings like 'PT15M' or 'PT1H30M' to total seconds (int)
+        """
+        import re           
+        # define regular expression to match time components
+        # ?P<name> allows us to access matched parts by name
+        pattern = re.compile(r'PT(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?')
+        match = pattern.match(duration_str)
+        
+        if not match:
+            return 0
+            
+        # set 0, if not match.
+        hours = int(match.group('hours') or 0)
+        minutes = int(match.group('minutes') or 0)
+        seconds = int(match.group('seconds') or 0)
+        
+        # sum up total seconds
+        total_seconds = (hours * 3600) + (minutes * 60) + seconds
+        return total_seconds
+
+    def _get_duration(self, program: Dict[str, Any]) -> int:
+        """Get the duration of the program in seconds.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Duration of the program in seconds or 0 if not available
+        """
+        duration_str = program.get("duration")
+        if not duration_str:
+            return 0
+        return self._convert_iso_duration(duration_str)
+
+    def _get_performer(self, program: Dict[str, Any]) -> str:
+        """Get the performer of the program.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Performer of the program or empty string if not available
+        """
+        # try to get performer from actList first
+        act_list = program.get("misc", {}).get("actList", [])
+        performers = [one.get("name") for one in act_list if one.get("name")]
+        
+        if performers:
+            # if found from actList, return joined string
+            return " ".join(performers)
+            
+        # fallback
+        fallback_desc = program.get("description", "")
+        if fallback_desc:
+            return fallback_desc.replace("\uFF0C", " ").replace("\u3001", " ").strip()
+
+        return ""
+    
+    def _get_genre(self, program: Dict[str, Any]) -> str:
+        """Get the genre of the program.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Genre of the program or empty string if not available
+        """
+        id_group = program.get("about", {}).get("identifierGroup", {})
+        
+        # if themeGenreTag does not exist, look for the regular genre list
+        genre_tags = id_group.get("themeGenreTag") or id_group.get("genre") or []
+        
+        genres = [entry.get("name") for entry in genre_tags if entry.get("name")]
+        return " ".join(genres)
+
+    def _get_logo_url(self, program: Dict[str, Any]) -> Optional[str]:
+        """Get the logo URL of the program.
+
+        Args:
+            program: Program info dict
+        Returns:
+            Logo URL of the program or None if not available
+        """
+        # set base dictionary for the image location
+        eyecatch = program.get("about", {}).get("partOfSeries", {}).get("eyecatch", {})
+        
+        # loop through sizes in order of priority
+        for size in ["main", "large", "medium", "small"]:
+            url = eyecatch.get(size, {}).get("url")
+            if url:
+                return url  # return the most high-priority URL
+        return None  # if no URL found, return None
+
+    def _get_url(self, program: Dict[str, Any]) -> Optional[str]:
+        """Get the URL of the program.
+
+        Args:
+            program: Program info dict
+        Returns:
+            URL of the program or None if not available
+        """
+        return program.get("about", {}).get("canonical", "")
+
+    def fetch_program(self, target_time: DT) -> Optional[Program]:
+        """Fetch program information from NHK API with error handling.
+
+        Args:
+            target_time: The time for which to get program information
+
+        Returns:
+            Program info dict or None if not available
+        """
+        program_info = self.get_program_info(target_time)
+        if not program_info:
+            return None
+ 
+        return Program(
+            title=self._get_title(program_info),
+            subtitle=self._get_subtitle(program_info),
+            station=self._get_station(program_info),
+            area=self.area_code,
+            description=self._get_description(program_info),
+            start_time=self._get_start_time(program_info),
+            end_time=self._get_end_time(program_info),
+            duration=self._get_duration(program_info),
+            genre=self._get_genre(program_info),
+            performer=self._get_performer(program_info),
+            image_url=self._get_logo_url(program_info),
+            url=self._get_url(program_info),
+        )
 
     def get_program_info(
         self,target_time: DT
