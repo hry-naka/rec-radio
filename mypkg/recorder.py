@@ -3,7 +3,6 @@
 import importlib.util
 import os
 import sys
-import shlex
 import shutil
 import subprocess
 from typing import Optional
@@ -211,7 +210,7 @@ class Recorder:
                 audio.tags["\xa9cmt"] = comment
 
             # Set genre
-            audio.tags["\xa9gen"] = "Radio"
+            audio.tags["\xa9gen"] = program.genre
 
             # Set track number if provided
             if track_num:
@@ -224,7 +223,11 @@ class Recorder:
             if program.image_url:
                 try:
                     coverart = requests.get(program.image_url, timeout=(20, 5)).content
-                    cover = MP4Cover(coverart, imageformat=MP4Cover.FORMAT_PNG)
+                    # もし今後、画像が表示されないプレイヤーがあれば、ここを微調整すると完璧です
+                    img_format = MP4Cover.FORMAT_JPEG
+                    if program.image_url.lower().endswith(".png"):
+                        img_format = MP4Cover.FORMAT_PNG
+                    cover = MP4Cover(coverart, imageformat=img_format)
                     audio["covr"] = [cover]
                 except requests.exceptions.RequestException as e:
                     print(f"Warning: Failed to fetch cover art: {e}")
