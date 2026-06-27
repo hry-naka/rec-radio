@@ -20,6 +20,7 @@ class Program:
         station: Station ID (e.g., 'TBS')
         area: Area ID (e.g., 'JP13')
         duration: Duration in seconds
+        genre: Program genre
         performer: Program host/personality
         description: Program description
         info: Additional program information
@@ -33,12 +34,13 @@ class Program:
     start_time: str
     end_time: str
     duration: int = 0
+    subtitle: Optional[str] = None
+    genre: Optional[str] = None
     performer: Optional[str] = None
     description: Optional[str] = None
     info: Optional[str] = None
     image_url: Optional[str] = None
     url: Optional[str] = None
-    subtitle: Optional[str] = None
 
     def get_duration_minutes(self) -> int:
         """Calculate duration in minutes.
@@ -70,3 +72,10 @@ class Program:
             f"{self.title} ({self.station}) "
             f"{self.start_time[:8]} {self.start_time[8:12]}-{self.end_time[8:12]}"
         )
+        
+    def __repr__(self) -> str:
+        """Return all the meta-data in this class for debugging"""
+        import dataclasses
+        fields = dataclasses.asdict(self)
+        details = "\n  ".join(f"{k}: {v}" for k, v in fields.items())
+        return f"Program(\n  {details}\n)"
