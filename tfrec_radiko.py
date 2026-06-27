@@ -8,11 +8,9 @@ Author: Hiroyuki NAKAMURA (https://github.com/hry-naka)
 Date: May 30, 2023
 """
 
-import subprocess
 import sys
 import argparse
 import os
-#from dotenv import load_dotenv
 
 from mypkg.radiko_api import RadikoAPIClient
 from mypkg.recorder import Recorder
