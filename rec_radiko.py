@@ -15,7 +15,6 @@ Date: May 25, 2023
 import argparse
 import sys
 from datetime import datetime as DT
-import os
 
 from mypkg.program_formatter import ProgramFormatter
 from mypkg.radiko_api import RadikoAPIClient
