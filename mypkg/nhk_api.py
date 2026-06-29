@@ -7,10 +7,20 @@ import requests
 
 from .program import Program
 
+
 class NhkAPIClient:
-    def __init__(self, api_key: str, location: str, area_code: str, code: str, api_version: str = "v3"):
-        if( api_version != "v3" ):
-            print("Warning: API version is not v3. This application only supports v3. The parameter is ignored.")
+    def __init__(
+        self,
+        api_key: str,
+        location: str,
+        area_code: str,
+        code: str,
+        api_version: str = "v3",
+    ):
+        if api_version != "v3":
+            print(
+                "Warning: API version is not v3. This application only supports v3. The parameter is ignored."
+            )
         self.api_version = "v3"
         self.api_key = api_key
         self.location = location
@@ -66,7 +76,10 @@ class NhkAPIClient:
                 stream_url = root.findtext(xpath)
                 if stream_url:
                     return stream_url
-        print(f"Error: No stream URL found for channel={self.code}, " f"location={self.location}")
+        print(
+            f"Error: No stream URL found for channel={self.code}, "
+            f"location={self.location}"
+        )
         return None
 
     def _get_title(self, program: Dict[str, Any]) -> str:
@@ -77,16 +90,7 @@ class NhkAPIClient:
         Returns:
             Title of the program or 'name' if 'title' is not available
         """
-        # fallback(default) title
-        fallback_title = program.get("name", "Unknown Program")
-        # get safer list of audio information
-        audio_list = program.get("about", {}).get("audio")
-        # if audio_list is empty or None, return fallback title
-        if not audio_list:
-            return fallback_title
-        # get title from the first audio entry, if available
-        title = audio_list[0].get("name")
-        return title if title else fallback_title
+        return program.get("name", "Unknown Program")
 
     def _get_station(self, program: Dict[str, Any]) -> Optional[str]:
         """Get the station code of the program.
@@ -99,8 +103,7 @@ class NhkAPIClient:
         service_name = program.get("publishedOn", {}).get("broadcastDisplayName", {})
         return service_name if service_name else None
 
-    
-    def _get_description(self, program: Dict[str, Any]) ->  Optional[str]:
+    def _get_description(self, program: Dict[str, Any]) -> Optional[str]:
         """Get the description of the program.
 
         Args:
@@ -109,9 +112,13 @@ class NhkAPIClient:
             Description of the program
         """
         fallback_description = program.get("description", {})
-        description = program.get("about", {}).get("partOfSeries",{}).get("description", fallback_description)
+        description = (
+            program.get("about", {})
+            .get("partOfSeries", {})
+            .get("description", fallback_description)
+        )
         return description if description else None
-    
+
     def _get_subtitle(self, program: Dict[str, Any]) -> Optional[str]:
         """Get the subtitle of the program.
 
@@ -122,7 +129,7 @@ class NhkAPIClient:
         """
         subtitle = program.get("about", {}).get("partOfSeries", {}).get("detailedCatch")
         return subtitle if subtitle else None
-    
+
     def _get_start_time(self, program: Dict[str, Any]) -> Optional[str]:
         """Get the start time of the program in "YYYYMMDDHHMMSS" format.
 
@@ -163,20 +170,23 @@ class NhkAPIClient:
         """
         Convert ISO 8601 duration strings like 'PT15M' or 'PT1H30M' to total seconds (int)
         """
-        import re           
+        import re
+
         # define regular expression to match time components
         # ?P<name> allows us to access matched parts by name
-        pattern = re.compile(r'PT(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?')
+        pattern = re.compile(
+            r"PT(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?"
+        )
         match = pattern.match(duration_str)
-        
+
         if not match:
             return 0
-            
+
         # set 0, if not match.
-        hours = int(match.group('hours') or 0)
-        minutes = int(match.group('minutes') or 0)
-        seconds = int(match.group('seconds') or 0)
-        
+        hours = int(match.group("hours") or 0)
+        minutes = int(match.group("minutes") or 0)
+        seconds = int(match.group("seconds") or 0)
+
         # sum up total seconds
         total_seconds = (hours * 3600) + (minutes * 60) + seconds
         return total_seconds
@@ -205,18 +215,18 @@ class NhkAPIClient:
         # try to get performer from actList first
         act_list = program.get("misc", {}).get("actList", [])
         performers = [one.get("name") for one in act_list if one.get("name")]
-        
+
         if performers:
             # if found from actList, return joined string
             return " ".join(performers)
-            
+
         # fallback
         fallback_desc = program.get("description", "")
         if fallback_desc:
-            return fallback_desc.replace("\uFF0C", " ").replace("\u3001", " ").strip()
+            return fallback_desc.replace("\uff0c", " ").replace("\u3001", " ").strip()
 
         return ""
-    
+
     def _get_genre(self, program: Dict[str, Any]) -> str:
         """Get the genre of the program.
 
@@ -226,10 +236,10 @@ class NhkAPIClient:
             Genre of the program or empty string if not available
         """
         id_group = program.get("about", {}).get("identifierGroup", {})
-        
+
         # if themeGenreTag does not exist, look for the regular genre list
         genre_tags = id_group.get("themeGenreTag") or id_group.get("genre") or []
-        
+
         genres = [entry.get("name") for entry in genre_tags if entry.get("name")]
         return " ".join(genres)
 
@@ -243,7 +253,7 @@ class NhkAPIClient:
         """
         # set base dictionary for the image location
         eyecatch = program.get("about", {}).get("partOfSeries", {}).get("eyecatch", {})
-        
+
         # loop through sizes in order of priority
         for size in ["main", "large", "medium", "small"]:
             url = eyecatch.get(size, {}).get("url")
@@ -273,7 +283,7 @@ class NhkAPIClient:
         program_info = self.get_program_info(target_time)
         if not program_info:
             return None
- 
+
         return Program(
             title=self._get_title(program_info),
             subtitle=self._get_subtitle(program_info),
@@ -289,9 +299,7 @@ class NhkAPIClient:
             url=self._get_url(program_info),
         )
 
-    def get_program_info(
-        self,target_time: DT
-    ) -> Optional[Dict[str, Any]]:
+    def get_program_info(self, target_time: DT) -> Optional[Dict[str, Any]]:
         """Get program information from NHK API with error handling.
 
         Args:
@@ -306,11 +314,12 @@ class NhkAPIClient:
             # this brach if for future extension, currently only v3 is supported
             return None
 
-
     def _get_program_info_v3(self, target_time: DT) -> Optional[Dict[str, Any]]:
         """Get program information from NHK API v3 with error handling."""
-  
-        now_url = self.NHK_API_V3_NOW.format(service=self.code, area=self.area_code, key=self.api_key)
+
+        now_url = self.NHK_API_V3_NOW.format(
+            service=self.code, area=self.area_code, key=self.api_key
+        )
 
         try:
             resp = requests.get(now_url, timeout=self.HTTP_TIMEOUT)
@@ -344,7 +353,9 @@ class NhkAPIClient:
                 start_dt = DT.fromisoformat(
                     program.get("startDate", "").replace("Z", "+00:00")
                 )
-                end_dt = DT.fromisoformat(program.get("endDate", "").replace("Z", "+00:00"))
+                end_dt = DT.fromisoformat(
+                    program.get("endDate", "").replace("Z", "+00:00")
+                )
 
                 if start_dt <= target_time <= end_dt:
                     current_program = program
@@ -364,7 +375,9 @@ class NhkAPIClient:
             return None
 
         # Fetch detailed program information
-        info_url = self.NHK_API_V3_INFO.format(broadcastEventId=event_id, key=self.api_key)
+        info_url = self.NHK_API_V3_INFO.format(
+            broadcastEventId=event_id, key=self.api_key
+        )
 
         try:
             info_resp = requests.get(info_url, timeout=self.HTTP_TIMEOUT)
