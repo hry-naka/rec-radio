@@ -79,14 +79,14 @@ PYTHONPATH=/home/naka-h/git/rec-radio
 # Taste of Jazz
 00 19 * * Sun $RECPY $RP/record_radio.py RN1 TasteOfJazz -c >> $LOGS 2>&1
 # Taste of Jazz Annex (last sunday only)
-30 19 31 5 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
-30 19 28 6 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
+30 19 26 7 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
+30 19 30 8 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
 # Jazz Voyage
 50 21 * * Sun $RECPY $RP/record_radio.py FM JazzVoyage -c >> $LOGS 2>&1
 # Murakami Radio
 # last sunday on every month
-00 19 31 5 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
-00 19 28 6 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+00 19 26 7 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+00 19 30 8 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
 
 # Force sysnchronzie midnight
 00 2 * * * onedrive --synchronize >> $LOGS 2>&1
