@@ -1,0 +1,9 @@
+python-dotenv
+requests
+mutagen
+yt-dlp
+git+https://github.com/garret1317/yt-dlp-rajiko.git
+pycryptodome
+
+ruff
+black

@@ -1,0 +1,78 @@
+# Edit this file to introduce tasks to be run by cron.
+# 
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+# 
+# To define the time you can provide concrete values for
+# minute (m), hour (h), day of month (dom), month (mon),
+# and day of week (dow) or use '*' in these fields (for 'any').
+# 
+# Notice that tasks will be started based on the cron's system
+# daemon's notion of time and timezones.
+# 
+# Output of the crontab jobs (including errors) is sent through
+# email to the user the crontab file belongs to (unless redirected).
+# 
+# For example, you can run a backup of all your user accounts
+# at 5 a.m every week with:
+# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+# 
+# For more information see the manual pages of crontab(5) and cron(8)
+# 
+# m h  dom mon dow   command
+
+30 5  * * * /home/naka-h/git/personalized-news-agent/run-news.sh Morning
+30 16 * * * /home/naka-h/git/personalized-news-agent/run-news.sh Evening
+
+RECPY=/home/naka-h/git/rec-radio/.venv/bin/python
+RP=/home/naka-h/git/rec-radio
+LOGS=/home/naka-h/.local/logs/record_radio.log
+# following line is wrong. $PYTHONPATH doesn't expand, due to cron's spec.
+#PYTHONPATH=/home/naka-h/git/rec-radio:$PYTHONPATH
+# if add new path to PYTHON class library, append ':/new/path/to/lib'.
+PYTHONPATH=/home/naka-h/git/rec-radio
+
+# Gogaku on NHK R2
+# Radio English Conversaton
+45  6 * * Mon-Fri $RECPY $RP/record_radio.py FM REC >> $LOGS 2>&1
+30  0 * * Tue-Sat $RECPY $RP/record_radio.py FM REC -c >> $LOGS 2>&1
+
+# Eikaiwa Time Trial
+50 23 * * Mon-Fri $RECPY $RP/record_radio.py FM ETT -c >> $LOGS 2>&1
+
+# Enjoy Simple English
+00  6 * * Mon-Fri $RECPY $RP/record_radio.py FM ESE >> $LOGS 2>&1
+45  0 * * Tue-Sat $RECPY $RP/record_radio.py FM ESE -c >> $LOGS 2>&1
+
+# Modern English from NEWS
+35 23 * * Mon-Fri $RECPY $RP/record_radio.py FM MEN -c >> $LOGS 2>&1
+
+# Everyday Chinese
+15 1 * * Mon-Fri $RECPY $RP/record_radio.py FM ECN -c >> $LOGS 2>&1
+
+# JazzReminiscence
+00 18 * * Sat $RECPY $RP/record_radio.py FMT JazzReminiscence -c >> $LOGS 2>&1
+# Labrinth 
+25 19 * * Sat $RECPY $RP/record_radio.py FM Labyrinth -c >> $LOGS 2>&1
+# Otona Jazz Time
+00 23 * * Sat $RECPY $RP/record_radio.py JORF OtonaJazzTime -c >> $LOGS 2>&1
+# Jazz Tonight
+00 23 * * Sat $RECPY $RP/record_radio.py FM JazzTonight -c >> $LOGS 2>&1
+
+# KakeruClassic
+00 14 * * Sun $RECPY $RP/record_radio.py FM KakeruClassic -c >> $LOGS 2>&1
+# Taste of Jazz
+00 20 * * Sun $RECPY $RP/record_radio.py RN1 TasteOfJazz -c >> $LOGS 2>&1
+# Taste of Jazz Annex (last sunday only)
+30 20 30 8 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
+30 19 27 9 * $RECPY $RP/record_radio.py RN1 TasteOfJazzANNEX -c >> $LOGS 2>&1
+# Jazz Voyage
+50 21 * * Sun $RECPY $RP/record_radio.py FM JazzVoyage -c >> $LOGS 2>&1
+# Murakami Radio
+# last sunday on every month
+00 19 30 8 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+00 19 27 9 * $RECPY $RP/record_radio.py FMT Murakami -c >> $LOGS 2>&1
+
+# Force sysnchronzie midnight
+00 2 * * * onedrive --synchronize >> $LOGS 2>&1
